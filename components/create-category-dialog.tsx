@@ -33,7 +33,7 @@ export function CreateCategoryDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <button className="w-full text-left px-3 py-2 text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-md hover:bg-white hover:border-neutral-400 flex items-center gap-2">
+          <button className="w-full text-left px-3.5 py-2.5 text-sm text-neutral-500 rounded-lg hover:bg-neutral-100/80 hover:text-neutral-700 flex items-center gap-2.5 transition-colors">
             <Plus size={14} /> 新建分类
           </button>
         }

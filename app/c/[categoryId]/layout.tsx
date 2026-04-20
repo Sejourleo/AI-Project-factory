@@ -14,9 +14,9 @@ export default async function CategoryLayout({
   // Categories created at runtime live in Context, not SEED — don't notFound here; let child pages handle unknown ids.
   return (
     <>
-      <header className="h-14 px-6 flex items-center border-b border-neutral-200 bg-white sticky top-0 z-10">
+      <header className="h-16 px-8 flex items-center bg-white sticky top-0 z-10">
         <div className="flex-1">
-          <h1 className="text-base font-semibold">
+          <h1 className="text-lg font-semibold tracking-tight">
             <CategoryName id={categoryId} fallback={cat?.name} />
           </h1>
         </div>

@@ -32,7 +32,7 @@ export default function ContentPage({
   return (
     <div className="flex flex-col">
       <DateStrip buckets={buckets} value={selectedDate} onChange={setDate} />
-      <div className="p-6 text-sm text-neutral-500">
+      <div className="px-8 py-10 text-sm text-neutral-400">
         已选日期：{selectedDate}（内容网格将在 Task 12 实现）
       </div>
     </div>

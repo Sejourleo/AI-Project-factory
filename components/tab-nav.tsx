@@ -13,7 +13,7 @@ const TABS = [
 export function TabNav({ categoryId }: { categoryId: string }) {
   const pathname = usePathname()
   return (
-    <div className="px-6 border-b border-neutral-200 bg-white flex gap-6">
+    <div className="px-8 bg-white flex gap-8">
       {TABS.map((t) => {
         const href = `/c/${categoryId}/${t.id}`
         const active = pathname.startsWith(href)
@@ -22,10 +22,10 @@ export function TabNav({ categoryId }: { categoryId: string }) {
             key={t.id}
             href={href}
             className={cn(
-              'py-3 text-sm border-b-2 transition-colors',
+              'py-4 text-sm border-b-2 transition-colors',
               active
                 ? 'border-neutral-900 text-neutral-900 font-medium'
-                : 'border-transparent text-neutral-500 hover:text-neutral-900'
+                : 'border-transparent text-neutral-400 hover:text-neutral-700'
             )}
           >
             {t.label}

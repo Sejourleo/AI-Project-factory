@@ -12,16 +12,16 @@ export function AppSidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="w-60 shrink-0 border-r border-neutral-200 bg-white flex flex-col">
-      <div className="h-14 px-4 flex items-center gap-2 border-b border-neutral-200">
-        <Boxes size={18} />
-        <span className="font-semibold">内容工厂</span>
+    <aside className="w-64 shrink-0 bg-white flex flex-col">
+      <div className="h-16 px-6 flex items-center gap-2.5">
+        <Boxes size={18} className="text-neutral-700" />
+        <span className="font-semibold tracking-tight">内容工厂</span>
       </div>
-      <div className="p-3 flex-1 overflow-y-auto">
-        <div className="text-[10px] uppercase tracking-wide text-neutral-400 mb-2 px-2">
+      <div className="px-4 pt-2 pb-6 flex-1 overflow-y-auto">
+        <div className="text-[11px] tracking-wider text-neutral-400 mb-3 px-3">
           监控分类
         </div>
-        <nav className="space-y-1">
+        <nav className="space-y-1.5">
           {categories.map((c) => {
             const active = pathname.startsWith(`/c/${c.id}`)
             return (
@@ -29,10 +29,10 @@ export function AppSidebar() {
                 key={c.id}
                 href={`/c/${c.id}/content`}
                 className={cn(
-                  'block px-3 py-2 text-sm rounded-md transition-colors',
+                  'block px-3.5 py-2.5 text-sm rounded-lg transition-colors',
                   active
-                    ? 'bg-neutral-900 text-white font-medium'
-                    : 'text-neutral-700 hover:bg-neutral-100'
+                    ? 'bg-neutral-900 text-white font-medium shadow-sm'
+                    : 'text-neutral-700 hover:bg-neutral-100/80'
                 )}
               >
                 {c.name}
@@ -40,7 +40,7 @@ export function AppSidebar() {
             )
           })}
         </nav>
-        <div className="mt-3">
+        <div className="mt-4 px-1">
           <CreateCategoryDialog />
         </div>
       </div>
