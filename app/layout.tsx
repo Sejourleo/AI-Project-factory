@@ -1,10 +1,8 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
 import { Toaster } from '@/components/ui/sonner'
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+import { CategoriesProvider } from '@/components/categories-provider'
+import { AppSidebar } from '@/components/app-sidebar'
 
 export const metadata: Metadata = {
   title: '内容工厂',
@@ -13,9 +11,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" className={cn("font-sans", geist.variable)}>
-      <body className="antialiased">
-        {children}
+    <html lang="zh-CN">
+      <body className="antialiased bg-neutral-50 text-neutral-900">
+        <CategoriesProvider>
+          <div className="flex min-h-screen">
+            <AppSidebar />
+            <main className="flex-1 flex flex-col min-w-0">{children}</main>
+          </div>
+        </CategoriesProvider>
         <Toaster richColors position="top-right" />
       </body>
     </html>

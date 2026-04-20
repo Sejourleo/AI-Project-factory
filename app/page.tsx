@@ -1,3 +1,6 @@
+import { redirect } from 'next/navigation'
+import { CATEGORIES_SEED } from '@/lib/fixtures/categories'
+
 export default function Home() {
-  return <div className="p-8">内容工厂（脚手架就绪）</div>
+  redirect(`/c/${CATEGORIES_SEED[0].id}/content`)
 }
