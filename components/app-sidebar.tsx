@@ -29,13 +29,17 @@ export function AppSidebar() {
                 key={c.id}
                 href={`/c/${c.id}/content`}
                 className={cn(
-                  'block px-3.5 py-2.5 text-sm rounded-lg transition-colors',
+                  'flex items-center gap-2.5 px-3.5 py-2.5 text-sm rounded-lg transition-colors',
                   active
                     ? 'bg-neutral-900 text-white font-medium shadow-sm'
                     : 'text-neutral-700 hover:bg-neutral-100/80'
                 )}
               >
-                {c.name}
+                <span
+                  className="inline-block size-2 rounded-full shrink-0"
+                  style={{ backgroundColor: c.color }}
+                />
+                <span className="truncate">{c.name}</span>
               </Link>
             )
           })}

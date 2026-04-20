@@ -1,9 +1,9 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { DateStrip } from '@/components/date-strip'
-import { getDateBuckets } from '@/lib/data/contents'
+import { CalendarGrid } from '@/components/calendar-grid'
+import { StatPanel } from '@/components/stat-panel'
 import { yesterday } from '@/lib/utils/dates'
 
 export default function ContentPage({
@@ -17,12 +17,6 @@ export default function ContentPage({
   const search = useSearchParams()
   const selectedDate = search.get('date') ?? yesterday()
 
-  const [buckets, setBuckets] = useState<Array<{ date: string; count: number }>>([])
-
-  useEffect(() => {
-    getDateBuckets(categoryId, 14).then(setBuckets)
-  }, [categoryId])
-
   function setDate(date: string) {
     const qs = new URLSearchParams(search.toString())
     qs.set('date', date)
@@ -30,11 +24,18 @@ export default function ContentPage({
   }
 
   return (
-    <div className="flex flex-col">
-      <DateStrip buckets={buckets} value={selectedDate} onChange={setDate} />
-      <div className="px-8 py-10 text-sm text-neutral-400">
-        已选日期：{selectedDate}（内容网格将在 Task 12 实现）
+    <div className="p-8 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6">
+      <div className="flex flex-col gap-6 min-w-0">
+        <CalendarGrid
+          categoryId={categoryId}
+          value={selectedDate}
+          onChange={setDate}
+        />
+        <div className="bg-white rounded-2xl p-10 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] text-sm text-neutral-400 text-center">
+          内容网格将在 Task 12 实现（已选日期：{selectedDate}）
+        </div>
       </div>
+      <StatPanel categoryId={categoryId} />
     </div>
   )
 }

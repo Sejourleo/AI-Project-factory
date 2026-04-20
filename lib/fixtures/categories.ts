@@ -4,6 +4,7 @@ export const CATEGORIES_SEED: Category[] = [
   {
     id: 'claudecode',
     name: 'ClaudeCode 选题监控',
+    color: '#6366f1',
     createdAt: '2026-03-01',
     settings: {
       platforms: ['douyin', 'xiaohongshu', 'weibo', 'bilibili'],
@@ -18,6 +19,7 @@ export const CATEGORIES_SEED: Category[] = [
   {
     id: 'vibecoding',
     name: 'Vibecoding 选题监控',
+    color: '#10b981',
     createdAt: '2026-03-10',
     settings: {
       platforms: ['xiaohongshu', 'weibo', 'bilibili'],
@@ -31,6 +33,7 @@ export const CATEGORIES_SEED: Category[] = [
   {
     id: 'ai-product',
     name: 'AI 产品监控',
+    color: '#f59e0b',
     createdAt: '2026-03-15',
     settings: {
       platforms: ['douyin', 'xiaohongshu', 'weibo', 'bilibili'],

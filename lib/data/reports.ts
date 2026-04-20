@@ -50,3 +50,27 @@ export async function regenerateReport(_categoryId: string, _date: string): Prom
   // TODO(api): POST /api/reports/generate { categoryId, date }
   await sleep(2000)
 }
+
+export async function getHotTags(
+  categoryId: string,
+  days: 7 | 30 = 7,
+  limit = 6
+): Promise<Array<{ tag: string; count: number }>> {
+  // TODO(api): GET /api/reports/hot-tags?categoryId=...&days=...
+  await sleep(30)
+  const dateSet = new Set(pastNDays(days))
+  const counts = new Map<string, number>()
+  for (const r of REPORTS_SEED) {
+    if (r.categoryId !== categoryId) continue
+    if (!dateSet.has(r.date)) continue
+    for (const t of r.topics) {
+      for (const tag of t.tags) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1)
+      }
+    }
+  }
+  return Array.from(counts.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+    .slice(0, limit)
+}

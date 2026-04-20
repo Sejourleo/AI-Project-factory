@@ -20,9 +20,21 @@ export type MonitorSettings = {
 export type Category = {
   id: string
   name: string
+  color: string
   createdAt: string
   settings: MonitorSettings
 }
+
+export const CATEGORY_COLORS = [
+  '#6366f1', // indigo
+  '#10b981', // emerald
+  '#f59e0b', // amber
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#8b5cf6', // violet
+  '#ef4444', // red
+  '#84cc16', // lime
+] as const
 
 export type ContentItem = {
   id: string

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import type { Category, MonitorSettings } from '@/lib/types'
+import { CATEGORY_COLORS } from '@/lib/types'
 import { CATEGORIES_SEED } from '@/lib/fixtures/categories'
 import { today } from '@/lib/utils/dates'
 
@@ -27,6 +28,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
     const created: Category = {
       id,
       name,
+      color: CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length],
       createdAt: today(),
       settings: {
         platforms: ['douyin', 'xiaohongshu', 'weibo', 'bilibili'],
@@ -36,7 +38,7 @@ export function CategoriesProvider({ children }: { children: ReactNode }) {
     }
     setCategories((prev) => [...prev, created])
     return created
-  }, [])
+  }, [categories.length])
 
   const updateSettings = useCallback((id: string, settings: MonitorSettings) => {
     setCategories((prev) =>
