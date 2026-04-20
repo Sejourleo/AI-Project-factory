@@ -1,10 +1,16 @@
 'use client'
 
-import { use } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { CalendarGrid } from '@/components/calendar-grid'
 import { StatPanel } from '@/components/stat-panel'
+import { ContentGrid } from '@/components/content-grid'
+import {
+  getContentsByDate,
+  getPlatformCounts,
+} from '@/lib/data/contents'
 import { yesterday } from '@/lib/utils/dates'
+import type { ContentItem, Platform } from '@/lib/types'
 
 export default function ContentPage({
   params,
@@ -16,11 +22,29 @@ export default function ContentPage({
   const pathname = usePathname()
   const search = useSearchParams()
   const selectedDate = search.get('date') ?? yesterday()
+  const platformsParam = search.get('platforms')
+  const selectedPlatforms: Platform[] = platformsParam
+    ? (platformsParam.split(',').filter(Boolean) as Platform[])
+    : []
 
-  function setDate(date: string) {
+  const [platformCounts, setPlatformCounts] = useState<Record<Platform, number>>({
+    douyin: 0, xiaohongshu: 0, weibo: 0, bilibili: 0,
+  })
+  const [items, setItems] = useState<ContentItem[]>([])
+
+  useEffect(() => {
+    getPlatformCounts(categoryId, selectedDate).then(setPlatformCounts)
+  }, [categoryId, selectedDate])
+
+  useEffect(() => {
+    getContentsByDate(categoryId, selectedDate, selectedPlatforms).then(setItems)
+  }, [categoryId, selectedDate, platformsParam])
+
+  function updateParam(key: string, value: string | null) {
     const qs = new URLSearchParams(search.toString())
-    qs.set('date', date)
-    router.replace(`${pathname}?${qs.toString()}`)
+    if (value === null || value === '') qs.delete(key)
+    else qs.set(key, value)
+    router.replace(`${pathname}${qs.toString() ? `?${qs}` : ''}`)
   }
 
   return (
@@ -29,11 +53,16 @@ export default function ContentPage({
         <CalendarGrid
           categoryId={categoryId}
           value={selectedDate}
-          onChange={setDate}
+          onChange={(d) => updateParam('date', d)}
         />
-        <div className="bg-white rounded-2xl p-10 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] text-sm text-neutral-400 text-center">
-          内容网格将在 Task 12 实现（已选日期：{selectedDate}）
-        </div>
+        <ContentGrid
+          items={items}
+          platformCounts={platformCounts}
+          selectedPlatforms={selectedPlatforms}
+          onPlatformChange={(ps) =>
+            updateParam('platforms', ps.length === 0 ? null : ps.join(','))
+          }
+        />
       </div>
       <StatPanel categoryId={categoryId} />
     </div>
