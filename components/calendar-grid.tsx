@@ -104,9 +104,6 @@ export function CalendarGrid({
           const active = date === value
           const isToday = date === todayStr
           const empty = !cell || cell.count === 0
-          const max = cell
-            ? Math.max(1, ...Object.values(cell.platforms))
-            : 1
 
           return (
             <button
@@ -128,21 +125,28 @@ export function CalendarGrid({
                 {dayNum}
               </span>
               {cell && cell.count > 0 && (
-                <div className="mt-auto flex items-end gap-[2px] h-5">
+                <div className="mt-auto flex items-center gap-[2px]">
                   {PLATFORMS.map((p) => {
                     const n = cell.platforms[p.id as Platform]
-                    const h = n === 0 ? 0 : 30 + (n / max) * 70 // 30%–100%
+                    if (n === 0) {
+                      return (
+                        <span
+                          key={p.id}
+                          className={cn(
+                            'flex-1 h-4 rounded-sm',
+                            active ? 'bg-white/15' : 'bg-neutral-100'
+                          )}
+                        />
+                      )
+                    }
                     return (
                       <span
                         key={p.id}
-                        className="flex-1 rounded-sm transition-opacity"
-                        style={{
-                          backgroundColor: active ? '#ffffff' : p.color,
-                          opacity: active ? 0.25 + (h / 100) * 0.75 : 0.15 + (h / 100) * 0.85,
-                          height: `${h}%`,
-                          minHeight: n > 0 ? '2px' : '0',
-                        }}
-                      />
+                        className="flex-1 h-4 rounded-sm flex items-center justify-center text-[9px] font-medium leading-none text-white"
+                        style={{ backgroundColor: active ? 'rgba(255,255,255,0.85)' : p.color, color: active ? '#111' : '#fff' }}
+                      >
+                        {n}
+                      </span>
                     )
                   })}
                 </div>
