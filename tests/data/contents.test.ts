@@ -36,8 +36,10 @@ describe('contents data access', () => {
 
   it('getPlatformCounts 返回各平台当日条数，包含未出现的平台为 0', async () => {
     const counts = await getPlatformCounts('claudecode', '2026-04-19')
-    expect(Object.keys(counts).sort()).toEqual(['bilibili', 'douyin', 'weibo', 'xiaohongshu'])
-    const total = counts.douyin + counts.xiaohongshu + counts.weibo + counts.bilibili
+    expect(Object.keys(counts).sort()).toEqual(
+      ['bilibili', 'douyin', 'twitter', 'wechat', 'weibo', 'xiaohongshu', 'zhihu']
+    )
+    const total = Object.values(counts).reduce((s, n) => s + n, 0)
     const all = await getContentsByDate('claudecode', '2026-04-19')
     expect(total).toBe(all.length)
   })

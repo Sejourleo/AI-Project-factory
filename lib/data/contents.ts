@@ -2,10 +2,16 @@ import type { ContentItem, Platform } from '@/lib/types'
 import { PLATFORMS } from '@/lib/types'
 import { CONTENTS_SEED } from '@/lib/fixtures/contents'
 import { pastNDays } from '@/lib/utils/dates'
-import dayjs from 'dayjs'
 
 async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms))
+}
+
+export function emptyPlatformCounts(): Record<Platform, number> {
+  return PLATFORMS.reduce((acc, p) => {
+    acc[p.id] = 0
+    return acc
+  }, {} as Record<Platform, number>)
 }
 
 export async function getContentsByDate(
@@ -21,19 +27,30 @@ export async function getContentsByDate(
     .sort((a, b) => b.hotScore - a.hotScore)
 }
 
+export type DateBucket = {
+  date: string
+  count: number
+  platforms: Record<Platform, number>
+}
+
 export async function getDateBuckets(
   categoryId: string,
   days = 14
-): Promise<Array<{ date: string; count: number }>> {
+): Promise<DateBucket[]> {
   // TODO(api): GET /api/contents/buckets?categoryId=...&days=...
   await sleep(30)
   const dates = pastNDays(days)
-  return dates.map((date) => ({
-    date,
-    count: CONTENTS_SEED.filter(
-      (c) => c.categoryId === categoryId && c.collectedAt.startsWith(date)
-    ).length,
-  }))
+  return dates.map((date) => {
+    const platforms = emptyPlatformCounts()
+    let count = 0
+    for (const c of CONTENTS_SEED) {
+      if (c.categoryId === categoryId && c.collectedAt.startsWith(date)) {
+        platforms[c.platform] += 1
+        count += 1
+      }
+    }
+    return { date, count, platforms }
+  })
 }
 
 export async function getPlatformCounts(
@@ -42,48 +59,13 @@ export async function getPlatformCounts(
 ): Promise<Record<Platform, number>> {
   // TODO(api): GET /api/contents/platform-counts?categoryId=...&date=...
   await sleep(20)
-  const result: Record<Platform, number> = {
-    douyin: 0, xiaohongshu: 0, weibo: 0, bilibili: 0,
-  }
+  const result = emptyPlatformCounts()
   for (const c of CONTENTS_SEED) {
     if (c.categoryId === categoryId && c.collectedAt.startsWith(date)) {
       result[c.platform] += 1
     }
   }
   return result
-}
-
-export type MonthCell = {
-  date: string
-  count: number
-  platforms: Record<Platform, number>
-}
-
-export async function getMonthCells(
-  categoryId: string,
-  year: number,
-  month: number
-): Promise<MonthCell[]> {
-  // TODO(api): GET /api/contents/month?categoryId=...&year=...&month=...
-  await sleep(40)
-  const first = dayjs(`${year}-${String(month).padStart(2, '0')}-01`)
-  const daysInMonth = first.daysInMonth()
-  const cells: MonthCell[] = []
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = first.date(d).format('YYYY-MM-DD')
-    const platforms: Record<Platform, number> = {
-      douyin: 0, xiaohongshu: 0, weibo: 0, bilibili: 0,
-    }
-    let count = 0
-    for (const c of CONTENTS_SEED) {
-      if (c.categoryId === categoryId && c.collectedAt.startsWith(date)) {
-        platforms[c.platform] += 1
-        count += 1
-      }
-    }
-    cells.push({ date, count, platforms })
-  }
-  return cells
 }
 
 export type CategoryStats = {
@@ -97,9 +79,7 @@ export async function getCategoryStats(categoryId: string): Promise<CategoryStat
   // TODO(api): GET /api/contents/stats?categoryId=...
   await sleep(30)
   const weekSet = new Set(pastNDays(7))
-  const perPlatform: Record<Platform, number> = {
-    douyin: 0, xiaohongshu: 0, weibo: 0, bilibili: 0,
-  }
+  const perPlatform = emptyPlatformCounts()
   let totalCount = 0
   let weekCount = 0
   for (const c of CONTENTS_SEED) {

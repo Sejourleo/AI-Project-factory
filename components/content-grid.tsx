@@ -1,64 +1,30 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import dayjs from 'dayjs'
+import { useMemo } from 'react'
 import { Inbox } from 'lucide-react'
-import type { ContentItem, Platform } from '@/lib/types'
+import type { ContentItem } from '@/lib/types'
 import { ContentCard } from '@/components/content-card'
-import { PlatformFilter } from '@/components/platform-filter'
-import { cn } from '@/lib/utils'
-
-type SortBy = 'hot' | 'time'
 
 export function ContentGrid({
   items,
-  platformCounts,
-  selectedPlatforms,
-  onPlatformChange,
+  date,
 }: {
   items: ContentItem[]
-  platformCounts: Record<Platform, number>
-  selectedPlatforms: Platform[]
-  onPlatformChange: (next: Platform[]) => void
+  date: string
 }) {
-  const [sortBy, setSortBy] = useState<SortBy>('hot')
-
-  const sorted = useMemo(() => {
-    if (sortBy === 'hot') return [...items].sort((a, b) => b.hotScore - a.hotScore)
-    return [...items].sort((a, b) => dayjs(b.publishedAt).unix() - dayjs(a.publishedAt).unix())
-  }, [items, sortBy])
+  const sorted = useMemo(
+    () => [...items].sort((a, b) => b.hotScore - a.hotScore),
+    [items]
+  )
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
-        <PlatformFilter
-          counts={platformCounts}
-          selected={selectedPlatforms}
-          onChange={onPlatformChange}
-        />
-        <div className="flex items-center gap-3 text-xs">
-          <span className="text-neutral-400">共 {items.length} 条</span>
-          <div className="flex gap-0.5 bg-neutral-100 p-0.5 rounded-md">
-            <button
-              onClick={() => setSortBy('hot')}
-              className={cn(
-                'px-2.5 py-1 rounded transition-colors',
-                sortBy === 'hot' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
-              )}
-            >
-              按热度
-            </button>
-            <button
-              onClick={() => setSortBy('time')}
-              className={cn(
-                'px-2.5 py-1 rounded transition-colors',
-                sortBy === 'time' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
-              )}
-            >
-              按时间
-            </button>
-          </div>
-        </div>
+    <div>
+      <div className="flex items-baseline justify-between mb-4">
+        <h2 className="text-sm text-neutral-900">
+          <span className="tabular-nums">{date}</span>
+          <span className="text-neutral-400 ml-3">共 {items.length} 条内容</span>
+        </h2>
+        <span className="text-xs text-neutral-500">按热度排序</span>
       </div>
 
       {items.length === 0 ? (
@@ -67,7 +33,7 @@ export function ContentGrid({
           <div className="text-sm">该日尚未采集到内容</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-col gap-3">
           {sorted.map((item) => (
             <ContentCard key={item.id} item={item} />
           ))}

@@ -1,10 +1,20 @@
-export type Platform = 'douyin' | 'xiaohongshu' | 'weibo' | 'bilibili'
+export type Platform =
+  | 'douyin'
+  | 'xiaohongshu'
+  | 'weibo'
+  | 'bilibili'
+  | 'twitter'
+  | 'wechat'
+  | 'zhihu'
 
-export const PLATFORMS: Array<{ id: Platform; name: string; color: string }> = [
-  { id: 'douyin',      name: '抖音',   color: '#000000' },
-  { id: 'xiaohongshu', name: '小红书', color: '#FE2C55' },
-  { id: 'weibo',       name: '微博',   color: '#E6162D' },
-  { id: 'bilibili',    name: 'B站',    color: '#FB7299' },
+export const PLATFORMS: Array<{ id: Platform; name: string; color: string; icon: string }> = [
+  { id: 'douyin',      name: '抖音',       color: '#1F2937', icon: '🎵' },
+  { id: 'xiaohongshu', name: '小红书',     color: '#22C55E', icon: '📕' },
+  { id: 'weibo',       name: '微博',       color: '#F97316', icon: '🔥' },
+  { id: 'bilibili',    name: 'B站',        color: '#00AEEC', icon: '📺' },
+  { id: 'twitter',     name: 'Twitter/X',  color: '#000000', icon: '𝕏' },
+  { id: 'wechat',      name: '公众号',     color: '#059669', icon: '💬' },
+  { id: 'zhihu',       name: '知乎',       color: '#6366F1', icon: '💡' },
 ]
 
 export type MonitorSettings = {
@@ -41,13 +51,15 @@ export type ContentItem = {
   categoryId: string
   platform: Platform
   title: string
+  summary: string
   author: string
   publishedAt: string
   collectedAt: string
   url: string
   coverImage?: string
-  stats: { likes: number; comments: number; shares: number }
+  stats: { likes: number; comments: number; shares: number; views: number }
   hotScore: number
+  tags: string[]
   matchedBy: { type: 'keyword' | 'account'; value: string }
 }
 

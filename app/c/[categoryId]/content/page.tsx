@@ -2,13 +2,11 @@
 
 import { use, useEffect, useState } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { CalendarGrid } from '@/components/calendar-grid'
+import { DateTimeline } from '@/components/date-timeline'
+import { PlatformFilter } from '@/components/platform-filter'
 import { StatPanel } from '@/components/stat-panel'
 import { ContentGrid } from '@/components/content-grid'
-import {
-  getContentsByDate,
-  getPlatformCounts,
-} from '@/lib/data/contents'
+import { getContentsByDate } from '@/lib/data/contents'
 import { yesterday } from '@/lib/utils/dates'
 import type { ContentItem, Platform } from '@/lib/types'
 
@@ -22,23 +20,16 @@ export default function ContentPage({
   const pathname = usePathname()
   const search = useSearchParams()
   const selectedDate = search.get('date') ?? yesterday()
-  const platformsParam = search.get('platforms')
-  const selectedPlatforms: Platform[] = platformsParam
-    ? (platformsParam.split(',').filter(Boolean) as Platform[])
-    : []
+  const platformParam = search.get('platform')
+  const selectedPlatform: Platform | null =
+    (platformParam as Platform | null) ?? null
 
-  const [platformCounts, setPlatformCounts] = useState<Record<Platform, number>>({
-    douyin: 0, xiaohongshu: 0, weibo: 0, bilibili: 0,
-  })
   const [items, setItems] = useState<ContentItem[]>([])
 
   useEffect(() => {
-    getPlatformCounts(categoryId, selectedDate).then(setPlatformCounts)
-  }, [categoryId, selectedDate])
-
-  useEffect(() => {
-    getContentsByDate(categoryId, selectedDate, selectedPlatforms).then(setItems)
-  }, [categoryId, selectedDate, platformsParam])
+    const ps = selectedPlatform ? [selectedPlatform] : undefined
+    getContentsByDate(categoryId, selectedDate, ps).then(setItems)
+  }, [categoryId, selectedDate, selectedPlatform])
 
   function updateParam(key: string, value: string | null) {
     const qs = new URLSearchParams(search.toString())
@@ -48,21 +39,19 @@ export default function ContentPage({
   }
 
   return (
-    <div className="p-8 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6">
+    <div className="p-8 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
       <div className="flex flex-col gap-6 min-w-0">
-        <CalendarGrid
+        <PlatformFilter
+          selected={selectedPlatform}
+          onChange={(p) => updateParam('platform', p)}
+        />
+        <DateTimeline
           categoryId={categoryId}
           value={selectedDate}
+          platformFilter={selectedPlatform}
           onChange={(d) => updateParam('date', d)}
         />
-        <ContentGrid
-          items={items}
-          platformCounts={platformCounts}
-          selectedPlatforms={selectedPlatforms}
-          onPlatformChange={(ps) =>
-            updateParam('platforms', ps.length === 0 ? null : ps.join(','))
-          }
-        />
+        <ContentGrid items={items} date={selectedDate} />
       </div>
       <StatPanel categoryId={categoryId} />
     </div>

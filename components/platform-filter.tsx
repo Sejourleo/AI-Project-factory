@@ -4,76 +4,40 @@ import { cn } from '@/lib/utils'
 import { PLATFORMS, type Platform } from '@/lib/types'
 
 export function PlatformFilter({
-  counts,
   selected,
   onChange,
 }: {
-  counts: Record<Platform, number>
-  selected: Platform[]
-  onChange: (next: Platform[]) => void
+  selected: Platform | null
+  onChange: (next: Platform | null) => void
 }) {
-  const total = PLATFORMS.reduce((s, p) => s + (counts[p.id] ?? 0), 0)
-  const allSelected = selected.length === 0
-
-  function togglePlatform(p: Platform) {
-    if (allSelected) {
-      onChange([p])
-    } else if (selected.includes(p)) {
-      const next = selected.filter((s) => s !== p)
-      onChange(next.length === 0 ? [] : next)
-    } else {
-      onChange([...selected, p])
-    }
-  }
-
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       <button
-        onClick={() => onChange([])}
+        onClick={() => onChange(null)}
         className={cn(
-          'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full transition-colors',
-          allSelected
-            ? 'bg-neutral-900 text-white'
-            : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200/70'
+          'inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg transition-colors',
+          selected === null
+            ? 'bg-blue-500 text-white shadow-sm'
+            : 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50'
         )}
       >
-        全部
-        <span className={cn(
-          'text-[10px]',
-          allSelected ? 'text-white/60' : 'text-neutral-400'
-        )}>
-          {total}
-        </span>
+        全部平台
       </button>
       {PLATFORMS.map((p) => {
-        const isSelected = selected.includes(p.id)
-        const count = counts[p.id] ?? 0
-        const muted = count === 0 && !isSelected
+        const active = selected === p.id
         return (
           <button
             key={p.id}
-            onClick={() => togglePlatform(p.id)}
-            disabled={muted}
+            onClick={() => onChange(p.id)}
             className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full transition-colors',
-              isSelected
-                ? 'bg-neutral-900 text-white'
-                : muted
-                  ? 'bg-neutral-50 text-neutral-300 cursor-not-allowed'
-                  : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200/70'
+              'inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg transition-colors',
+              active
+                ? 'bg-blue-500 text-white shadow-sm'
+                : 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50'
             )}
           >
-            <span
-              className="size-1.5 rounded-full"
-              style={{ backgroundColor: isSelected ? '#ffffff' : p.color, opacity: muted ? 0.4 : 1 }}
-            />
+            <span className="text-[15px] leading-none">{p.icon}</span>
             {p.name}
-            <span className={cn(
-              'text-[10px]',
-              isSelected ? 'text-white/60' : muted ? 'text-neutral-300' : 'text-neutral-400'
-            )}>
-              {count}
-            </span>
           </button>
         )
       })}

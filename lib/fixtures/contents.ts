@@ -39,6 +39,32 @@ const TITLE_TEMPLATES: Record<string, string[]> = {
   ],
 }
 
+const SUMMARY_TEMPLATES: Record<string, string[]> = {
+  claudecode: [
+    '短视频展示使用 Claude Code 快速开发微信小程序的全过程，引发大量关注与讨论…',
+    'UP主分别用传统方式和 Claude Code 方式完成同一个项目，详细对比开发效率和代码质量…',
+    '作者分享了 MCP 工具链从安装到落地的完整配置流程，覆盖多个常见坑点…',
+    'Subagent 模板库实战演示，展示如何在复杂任务中编排多个专业子 agent…',
+    '深度拆解 Claude Hooks 的触发时机与使用场景，附带实际项目示例…',
+  ],
+  vibecoding: [
+    '从传统流程切换到 Vibe Coding 后的个人体验总结，重点讨论生产力变化…',
+    '一线开发者分享和 AI 结对一个月的真实感受，既有惊喜也有坑…',
+    '10 个高频 Vibe Coding Prompt 整理分享，覆盖需求分析到代码生成全链路…',
+  ],
+  'ai-product': [
+    '2026 第一季度 AI 产品横评，对比订阅价格、功能覆盖与实际体验…',
+    '深度测评 AI Agent 类产品的真实工作时长和任务完成度…',
+    '商业化 AI 产品盘点，包含订阅量、留存与付费转化数据…',
+  ],
+}
+
+const TAG_POOLS: Record<string, string[]> = {
+  claudecode: ['AI编程', 'Claude Code', '小程序', 'MCP', 'Subagent', '独立开发', '开发效率'],
+  vibecoding: ['Vibe Coding', '氛围编程', 'AI 结对', 'Prompt', '对比测评', '开发效率'],
+  'ai-product': ['AI产品', 'Agent', 'ChatGPT', '产品测评', '订阅制', '商业化'],
+}
+
 const AUTHORS = [
   '编程阿强',  '独立开发日记',  '前端老炮',  'AI 观察者',
   '硬核极客',  '产品老师',  '代码诗人',  'Prompt 研究员',
@@ -81,11 +107,21 @@ function generateForDay(
         : i < count * 0.3 ? 60 + (seed % 30)            // 中热
           : 20 + (seed % 40)                             // 低热
 
+    const summaries = SUMMARY_TEMPLATES[categoryId] ?? SUMMARY_TEMPLATES.claudecode
+    const tagPool = TAG_POOLS[categoryId] ?? TAG_POOLS.claudecode
+    const tagCount = 2 + (seed % 2) // 2-3 tags
+    const tags: string[] = []
+    for (let t = 0; t < tagCount; t++) {
+      const tag = pick(tagPool, seed + t * 7)
+      if (!tags.includes(tag)) tags.push(tag)
+    }
+
     items.push({
       id: `${categoryId}-${date}-${i}`,
       categoryId,
       platform,
       title: `${title}${i % 5 === 0 ? '（干货版）' : ''}`,
+      summary: pick(summaries, seed + i),
       author,
       publishedAt: `${date}T${String(8 + (i % 12)).padStart(2, '0')}:00:00Z`,
       collectedAt: `${date}T23:00:00Z`,
@@ -95,8 +131,10 @@ function generateForDay(
         likes:    100 + seed % 50000,
         comments: 10 + seed % 2000,
         shares:   5  + seed % 800,
+        views:    1000 + seed % 2000000,
       },
       hotScore,
+      tags,
       matchedBy,
     })
   }
