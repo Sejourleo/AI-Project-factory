@@ -71,12 +71,16 @@ export function ContentCard({ item }: { item: ContentItem }) {
             <span className="inline-flex items-center gap-1">
               <Heart size={12} /> {fmtNum(item.stats.likes)}
             </span>
-            <span className="inline-flex items-center gap-1">
-              <MessageCircle size={12} /> {fmtNum(item.stats.comments)}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <Share2 size={12} /> {fmtNum(item.stats.shares)}
-            </span>
+            {item.stats.comments !== undefined && (
+              <span className="inline-flex items-center gap-1">
+                <MessageCircle size={12} /> {fmtNum(item.stats.comments)}
+              </span>
+            )}
+            {item.stats.shares !== undefined && (
+              <span className="inline-flex items-center gap-1">
+                <Share2 size={12} /> {fmtNum(item.stats.shares)}
+              </span>
+            )}
             <span className="inline-flex items-center gap-1">
               <Eye size={12} /> {fmtNum(item.stats.views)}
             </span>

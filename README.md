@@ -6,10 +6,14 @@
 
 ```bash
 npm install
+cp .env.example .env.local   # 填入公众号搜索 API key
 npm run dev
 ```
 
 访问 http://localhost:3000
+
+> `.env.local` 中的 `WECHAT_SEARCH_API_KEY` 仅在服务端使用（`/api/wechat/search` 代理转发），
+> 不会下发到浏览器。未配置时，公众号平台退化为空列表，其它平台仍正常展示。
 
 ## 功能
 

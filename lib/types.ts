@@ -57,7 +57,7 @@ export type ContentItem = {
   collectedAt: string
   url: string
   coverImage?: string
-  stats: { likes: number; comments: number; shares: number; views: number }
+  stats: { likes: number; comments?: number; shares?: number; views: number }
   hotScore: number
   tags: string[]
   matchedBy: { type: 'keyword' | 'account'; value: string }

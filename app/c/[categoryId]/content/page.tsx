@@ -6,6 +6,7 @@ import { DateTimeline } from '@/components/date-timeline'
 import { PlatformFilter } from '@/components/platform-filter'
 import { StatPanel } from '@/components/stat-panel'
 import { ContentGrid } from '@/components/content-grid'
+import { useCategories } from '@/components/categories-provider'
 import { getContentsByDate } from '@/lib/data/contents'
 import { yesterday } from '@/lib/utils/dates'
 import type { ContentItem, Platform } from '@/lib/types'
@@ -16,6 +17,8 @@ export default function ContentPage({
   params: Promise<{ categoryId: string }>
 }) {
   const { categoryId } = use(params)
+  const { getById } = useCategories()
+  const wechatKeyword = getById(categoryId)?.settings.keywords[0]
   const router = useRouter()
   const pathname = usePathname()
   const search = useSearchParams()
@@ -28,8 +31,8 @@ export default function ContentPage({
 
   useEffect(() => {
     const ps = selectedPlatform ? [selectedPlatform] : undefined
-    getContentsByDate(categoryId, selectedDate, ps).then(setItems)
-  }, [categoryId, selectedDate, selectedPlatform])
+    getContentsByDate(categoryId, selectedDate, ps, wechatKeyword).then(setItems)
+  }, [categoryId, selectedDate, selectedPlatform, wechatKeyword])
 
   function updateParam(key: string, value: string | null) {
     const qs = new URLSearchParams(search.toString())
@@ -49,6 +52,7 @@ export default function ContentPage({
           categoryId={categoryId}
           value={selectedDate}
           platformFilter={selectedPlatform}
+          wechatKeyword={wechatKeyword}
           onChange={(d) => updateParam('date', d)}
         />
         <ContentGrid items={items} date={selectedDate} />

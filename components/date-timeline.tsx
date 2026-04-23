@@ -22,11 +22,13 @@ export function DateTimeline({
   categoryId,
   value,
   platformFilter,
+  wechatKeyword,
   onChange,
 }: {
   categoryId: string
   value: string
   platformFilter: Platform | null
+  wechatKeyword?: string
   onChange: (date: string) => void
 }) {
   const [buckets, setBuckets] = useState<DateBucket[]>([])
@@ -34,14 +36,14 @@ export function DateTimeline({
 
   useEffect(() => {
     let cancelled = false
-    getDateBuckets(categoryId, DAY_COUNT + 1).then((all) => {
+    getDateBuckets(categoryId, DAY_COUNT + 1, wechatKeyword).then((all) => {
       if (cancelled) return
       // Exclude "today" since default view is yesterday-back.
       const past = all.filter((b) => b.date !== todayStr).slice(-DAY_COUNT)
       setBuckets(past.reverse()) // newest (yesterday) first
     })
     return () => { cancelled = true }
-  }, [categoryId, todayStr])
+  }, [categoryId, todayStr, wechatKeyword])
 
   return (
     <div className="grid grid-cols-11 gap-2">
