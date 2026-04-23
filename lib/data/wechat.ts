@@ -17,6 +17,7 @@ type SearchResponse = { items: WechatDatum[]; total: number }
 
 const TTL_MS = 5 * 60 * 1000
 const cache = new Map<string, { items: ContentItem[]; expiresAt: number }>()
+const inflight = new Map<string, Promise<ContentItem[]>>()
 
 function hotScoreOf(read: number, praise: number): number {
   const raw = 20 + 15 * Math.log10((read ?? 0) + 1) + 8 * Math.log10((praise ?? 0) + 1)
@@ -49,30 +50,56 @@ function mapToContentItem(
   }
 }
 
-export async function getWechatArticles(
+async function fetchOneKeyword(
   categoryId: string,
   keyword: string
 ): Promise<ContentItem[]> {
   const cacheKey = `${categoryId}:${keyword}`
   const cached = cache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return cached.items
+  const existing = inflight.get(cacheKey)
+  if (existing) return existing
 
-  try {
-    const res = await fetch('/api/wechat/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword, period: 7 }),
-    })
-    if (!res.ok) {
-      console.warn('[wechat] upstream failed', res.status)
+  const promise = (async () => {
+    try {
+      const res = await fetch('/api/wechat/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword, period: 7 }),
+      })
+      if (!res.ok) {
+        console.warn('[wechat] upstream failed', keyword, res.status)
+        return []
+      }
+      const json = (await res.json()) as SearchResponse
+      const items = (json.items ?? []).map((d) => mapToContentItem(d, categoryId, keyword))
+      cache.set(cacheKey, { items, expiresAt: Date.now() + TTL_MS })
+      return items
+    } catch (err) {
+      console.warn('[wechat] fetch error', keyword, err)
       return []
+    } finally {
+      inflight.delete(cacheKey)
     }
-    const json = (await res.json()) as SearchResponse
-    const items = (json.items ?? []).map((d) => mapToContentItem(d, categoryId, keyword))
-    cache.set(cacheKey, { items, expiresAt: Date.now() + TTL_MS })
-    return items
-  } catch (err) {
-    console.warn('[wechat] fetch error', err)
-    return []
+  })()
+
+  inflight.set(cacheKey, promise)
+  return promise
+}
+
+export async function getWechatArticles(
+  categoryId: string,
+  keywords: string[] | undefined
+): Promise<ContentItem[]> {
+  if (!keywords || keywords.length === 0) return []
+  const batches = await Promise.all(
+    keywords.map((kw) => fetchOneKeyword(categoryId, kw))
+  )
+  const byId = new Map<string, ContentItem>()
+  for (const items of batches) {
+    for (const it of items) {
+      if (!byId.has(it.id)) byId.set(it.id, it)
+    }
   }
+  return Array.from(byId.values())
 }

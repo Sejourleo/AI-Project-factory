@@ -19,7 +19,7 @@ export async function getContentsByDate(
   categoryId: string,
   date: string,
   platforms?: Platform[],
-  wechatKeyword?: string
+  wechatKeywords?: string[]
 ): Promise<ContentItem[]> {
   // TODO(api): GET /api/contents?categoryId=...&date=...&platforms=...
   await sleep(50)
@@ -36,12 +36,11 @@ export async function getContentsByDate(
       )
     : []
 
-  const wechat =
-    needsWechat && wechatKeyword
-      ? (await getWechatArticles(categoryId, wechatKeyword)).filter((c) =>
-          c.publishedAt.startsWith(date)
-        )
-      : []
+  const wechat = needsWechat
+    ? (await getWechatArticles(categoryId, wechatKeywords)).filter((c) =>
+        c.publishedAt.startsWith(date)
+      )
+    : []
 
   return [...wechat, ...fixture].sort((a, b) => b.hotScore - a.hotScore)
 }
@@ -55,12 +54,12 @@ export type DateBucket = {
 export async function getDateBuckets(
   categoryId: string,
   days = 14,
-  wechatKeyword?: string
+  wechatKeywords?: string[]
 ): Promise<DateBucket[]> {
   // TODO(api): GET /api/contents/buckets?categoryId=...&days=...
   await sleep(30)
   const dates = pastNDays(days)
-  const wechat = wechatKeyword ? await getWechatArticles(categoryId, wechatKeyword) : []
+  const wechat = await getWechatArticles(categoryId, wechatKeywords)
   return dates.map((date) => {
     const platforms = emptyPlatformCounts()
     let count = 0

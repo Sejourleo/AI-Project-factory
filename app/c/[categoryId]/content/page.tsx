@@ -18,7 +18,7 @@ export default function ContentPage({
 }) {
   const { categoryId } = use(params)
   const { getById } = useCategories()
-  const wechatKeyword = getById(categoryId)?.settings.keywords[0]
+  const wechatKeywords = getById(categoryId)?.settings.keywords
   const router = useRouter()
   const pathname = usePathname()
   const search = useSearchParams()
@@ -31,8 +31,8 @@ export default function ContentPage({
 
   useEffect(() => {
     const ps = selectedPlatform ? [selectedPlatform] : undefined
-    getContentsByDate(categoryId, selectedDate, ps, wechatKeyword).then(setItems)
-  }, [categoryId, selectedDate, selectedPlatform, wechatKeyword])
+    getContentsByDate(categoryId, selectedDate, ps, wechatKeywords).then(setItems)
+  }, [categoryId, selectedDate, selectedPlatform, wechatKeywords])
 
   function updateParam(key: string, value: string | null) {
     const qs = new URLSearchParams(search.toString())
@@ -52,7 +52,7 @@ export default function ContentPage({
           categoryId={categoryId}
           value={selectedDate}
           platformFilter={selectedPlatform}
-          wechatKeyword={wechatKeyword}
+          wechatKeywords={wechatKeywords}
           onChange={(d) => updateParam('date', d)}
         />
         <ContentGrid items={items} date={selectedDate} />
