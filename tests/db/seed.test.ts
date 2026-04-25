@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import Database from 'better-sqlite3'
 import { applyMigrations } from '@/lib/db/client'
 import { seedIfEmpty } from '@/lib/db/seed'
+import { CATEGORIES_SEED } from '@/lib/fixtures/categories'
 
 function freshDb() {
   const db = new Database(':memory:')
@@ -17,7 +18,8 @@ describe('seedIfEmpty', () => {
     const cats = db.prepare('SELECT id FROM categories ORDER BY id').all() as Array<{ id: string }>
     expect(cats.map((c) => c.id)).toEqual(['ai-product', 'claudecode', 'vibecoding'])
     const kwCount = db.prepare('SELECT count(*) as n FROM keyword_configs').get() as { n: number }
-    expect(kwCount.n).toBeGreaterThanOrEqual(3)
+    const expectedKwCount = CATEGORIES_SEED.flatMap((c) => c.settings.keywords).length
+    expect(kwCount.n).toBe(expectedKwCount)
   })
 
   it('再次调用幂等 → 不重复插入', () => {
