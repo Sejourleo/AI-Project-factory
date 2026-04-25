@@ -138,8 +138,13 @@ function encodeCursor(startedAt: string, id: number): string {
 }
 function decodeCursor(cursor: string): { startedAt: string; id: number } | null {
   try {
-    const [startedAt, idStr] = Buffer.from(cursor, 'base64').toString('utf8').split('|')
-    return { startedAt, id: Number(idStr) }
+    const decoded = Buffer.from(cursor, 'base64').toString('utf8')
+    const pipeIdx = decoded.lastIndexOf('|')
+    if (pipeIdx === -1) return null
+    const startedAt = decoded.slice(0, pipeIdx)
+    const id = Number(decoded.slice(pipeIdx + 1))
+    if (!startedAt || !Number.isFinite(id)) return null
+    return { startedAt, id }
   } catch {
     return null
   }
@@ -202,7 +207,7 @@ export function getQueryWithNotes(
     publishedAt: String(n.published_at),
     collectedAt: String(n.collected_at),
     url: String(n.url),
-    coverImage: n.cover_image as string | undefined,
+    coverImage: n.cover_image == null ? undefined : String(n.cover_image),
     stats: {
       likes: Number(n.likes ?? 0),
       comments: n.comments == null ? undefined : Number(n.comments),

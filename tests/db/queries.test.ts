@@ -94,4 +94,18 @@ describe('queries DB', () => {
     const page2 = listQueries(db, { categoryId: c.id, limit: 2, cursor: page1.nextCursor })
     expect(page2.items.map((q) => q.keyword)).toEqual(['k2', 'k1'])
   })
+
+  it('listQueries 忽略无效 cursor 并退回第一页', () => {
+    const c = createCategory(db, { name: 'C', color: '#000' })
+    for (let i = 0; i < 3; i++) {
+      logQueryError(db, {
+        categoryId: c.id, keyword: `k${i}`, platform: 'xiaohongshu',
+        startedAt: `2026-04-25T10:00:0${i}.000Z`,
+        finishedAt: `2026-04-25T10:00:0${i}.500Z`, errorMessage: 'e',
+      })
+    }
+    const result = listQueries(db, { categoryId: c.id, cursor: 'not-a-valid-cursor!!!' })
+    expect(result.items).toHaveLength(3)
+    expect(result.items[0].keyword).toBe('k2')
+  })
 })
