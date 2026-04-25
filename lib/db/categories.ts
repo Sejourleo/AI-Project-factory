@@ -68,7 +68,7 @@ export function createCategory(
 ): Category {
   const existing = db.prepare('SELECT count(*) as n FROM categories').get() as { n: number }
   const color = input.color ?? CATEGORY_COLORS[existing.n % CATEGORY_COLORS.length]
-  const id = `cat-${Date.now()}`
+  const id = `cat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const created_at = today()
   db.prepare(`
     INSERT INTO categories (id, name, color, created_at, accounts)

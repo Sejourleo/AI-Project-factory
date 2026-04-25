@@ -53,6 +53,14 @@ describe('categories DB', () => {
     expect(getCategoryById(db, c.id)?.settings.accounts).toHaveLength(1)
   })
 
+  it('createCategory 同毫秒内连续调用不重复 id', () => {
+    const ids = new Set<string>()
+    for (let i = 0; i < 50; i++) {
+      ids.add(createCategory(db, { name: `c${i}`, color: '#000' }).id)
+    }
+    expect(ids.size).toBe(50)
+  })
+
   it('deleteCategory 级联删 keyword_configs', () => {
     const c = createCategory(db, { name: 'D', color: '#000' })
     replaceKeywords(db, c.id, [{ value: 'k', platforms: ['xiaohongshu'] }])
