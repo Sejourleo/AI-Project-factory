@@ -19,10 +19,11 @@ export function CreateCategoryDialog() {
   const { addCategory } = useCategories()
   const router = useRouter()
 
-  function handleCreate() {
+  async function handleCreate() {
     const trimmed = name.trim()
     if (!trimmed) return
-    const c = addCategory(trimmed)
+    const c = await addCategory(trimmed)
+    if (!c) return
     toast.success(`已创建分类"${c.name}"`)
     setOpen(false)
     setName('')
