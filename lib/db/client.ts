@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
+import { seedIfEmpty } from './seed'
 
 const DB_DIR = path.join(process.cwd(), 'data')
 const DB_PATH = path.join(DB_DIR, 'content.db')
@@ -91,6 +92,7 @@ export function getDb(): Database.Database {
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   applyMigrations(db)
+  seedIfEmpty(db)
   _db = db
   return db
 }
