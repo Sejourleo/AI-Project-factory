@@ -1,4 +1,5 @@
-import { CATEGORIES_SEED } from '@/lib/fixtures/categories'
+import { getDb } from '@/lib/db/client'
+import { getCategoryById } from '@/lib/db/categories'
 import { TabNav } from '@/components/tab-nav'
 import { CategoryName } from '@/components/category-name'
 
@@ -10,8 +11,7 @@ export default async function CategoryLayout({
   params: Promise<{ categoryId: string }>
 }) {
   const { categoryId } = await params
-  const cat = CATEGORIES_SEED.find((c) => c.id === categoryId)
-  // Categories created at runtime live in Context, not SEED — don't notFound here; let child pages handle unknown ids.
+  const cat = getCategoryById(getDb(), categoryId)
   return (
     <>
       <header className="h-16 px-8 flex items-center bg-white sticky top-0 z-10">

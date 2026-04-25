@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 
 const TABS = [
   { id: 'content',  label: '内容' },
+  { id: 'history',  label: '查询历史' },
   { id: 'reports',  label: '选题分析' },
   { id: 'settings', label: '监控设置' },
 ]
