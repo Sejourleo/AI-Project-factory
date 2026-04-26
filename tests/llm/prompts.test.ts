@@ -8,21 +8,17 @@ describe('prompts', () => {
   it('NOTE_SUMMARY_SCHEMA: 必填字段齐全', () => {
     expect(NOTE_SUMMARY_SCHEMA.type).toBe('object')
     const required = (NOTE_SUMMARY_SCHEMA as { required: string[] }).required
-    expect(required).toEqual(
-      expect.arrayContaining(['summary', 'keywords', 'keyPoints', 'highlights'])
-    )
+    expect(required).toEqual(['summary', 'keywords', 'keyPoints', 'highlights'])
   })
 
   it('INSIGHTS_SCHEMA: insights 数组,每项含 7 字段', () => {
     const props = (INSIGHTS_SCHEMA as { properties: Record<string, unknown> }).properties
     expect(props.insights).toBeDefined()
     const items = (props.insights as { items: { required: string[] } }).items
-    expect(items.required).toEqual(
-      expect.arrayContaining([
-        'title', 'angle', 'evidenceNoteIds',
-        'audience', 'contentFormat', 'differentiation', 'tags',
-      ])
-    )
+    expect(items.required).toEqual([
+      'title', 'angle', 'evidenceNoteIds',
+      'audience', 'contentFormat', 'differentiation', 'tags',
+    ])
   })
 
   it('buildNoteSummaryPrompt: 标题/作者/平台拼到 user', () => {
@@ -45,6 +41,7 @@ describe('prompts', () => {
       platform: 'wechat', title: 'T', author: 'A', summary: 'S', raw: longRaw,
     })
     expect(p.user.length).toBeLessThan(3000)
+    expect(p.user).toContain('...(截断)')
   })
 
   it('buildInsightsPrompt: 含分类名 + 笔记数量提示', () => {
