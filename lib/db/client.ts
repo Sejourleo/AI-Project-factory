@@ -82,6 +82,30 @@ export function applyMigrations(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_query_notes_note
       ON query_notes(note_id);
+
+    CREATE TABLE IF NOT EXISTS note_summaries (
+      note_id TEXT PRIMARY KEY REFERENCES collected_notes(id) ON DELETE CASCADE,
+      summary TEXT NOT NULL,
+      keywords TEXT NOT NULL DEFAULT '[]',
+      key_points TEXT NOT NULL DEFAULT '[]',
+      highlights TEXT NOT NULL DEFAULT '[]',
+      audience TEXT,
+      model TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS topic_insights (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+      generated_at TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('success','error')),
+      error_message TEXT,
+      source_note_ids TEXT NOT NULL DEFAULT '[]',
+      insights TEXT NOT NULL DEFAULT '[]',
+      model TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_topic_insights_cat_time
+      ON topic_insights(category_id, generated_at DESC);
   `)
 }
 
