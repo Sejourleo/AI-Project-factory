@@ -95,44 +95,81 @@ export function ReportViewer({
     )
   }
 
+  const hotKeywords = collectHotKeywords(snapshot.insights, 8)
+
   return (
-    <article className="space-y-6">
-      <header className="bg-white rounded-xl border border-neutral-100 p-6 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-neutral-900 mb-1.5">
-            选题洞察
-          </h2>
-          <p className="text-xs text-neutral-400">
-            生成于 {dayjs(snapshot.generatedAt).format('YYYY-MM-DD HH:mm')} ·
-            模型 {snapshot.model} ·
-            基于 {snapshot.sourceNoteIds.length} 篇笔记 · {snapshot.insights.length} 条洞察
-          </p>
+    <article className="flex flex-col gap-6">
+      <header className="bg-white rounded-xl border border-neutral-100 p-6 flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold tracking-tight text-neutral-900 mb-1.5">
+              {dayjs(snapshot.generatedAt).format('YYYY-MM-DD')} 选题洞察
+            </h2>
+            <p className="text-xs text-neutral-400">
+              生成于 {dayjs(snapshot.generatedAt).format('YYYY-MM-DD HH:mm')} ·
+              模型 {snapshot.model} ·
+              基于 {snapshot.sourceNoteIds.length} 篇笔记 · {snapshot.insights.length} 条洞察
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <KeywordAnalysisDialog
+              categoryId={categoryId}
+              configuredKeywords={configuredKeywords}
+              onGenerated={onRegenerated}
+            />
+            <button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200/70 transition-colors',
+                regenerating && 'cursor-wait opacity-60'
+              )}
+            >
+              <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} />
+              {regenerating ? '分析中…' : '重新生成'}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <KeywordAnalysisDialog
-            categoryId={categoryId}
-            configuredKeywords={configuredKeywords}
-            onGenerated={onRegenerated}
-          />
-          <button
-            onClick={handleRegenerate}
-            disabled={regenerating}
-            className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200/70 transition-colors',
-              regenerating && 'cursor-wait opacity-60'
-            )}
-          >
-            <RefreshCw size={13} className={regenerating ? 'animate-spin' : ''} />
-            {regenerating ? '分析中…' : '重新生成'}
-          </button>
-        </div>
+
+        {hotKeywords.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-neutral-400 shrink-0">热词 ·</span>
+            {hotKeywords.map((kw) => (
+              <span
+                key={kw}
+                className="inline-flex items-center px-2 py-0.5 rounded-md bg-rose-50 text-[11px] text-rose-600"
+              >
+                {kw}
+              </span>
+            ))}
+          </div>
+        )}
       </header>
 
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-medium text-neutral-700 px-1">
+          选题建议 ({snapshot.insights.length})
+        </h3>
         {snapshot.insights.map((it, i) => (
           <InsightCard key={`${snapshot.id}-${i}`} insight={it} index={i} />
         ))}
       </div>
     </article>
   )
+}
+
+function collectHotKeywords(
+  insights: InsightSnapshot['insights'],
+  limit: number,
+): string[] {
+  const counts = new Map<string, number>()
+  for (const it of insights) {
+    for (const t of it.tags) {
+      counts.set(t, (counts.get(t) ?? 0) + 1)
+    }
+  }
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([tag]) => tag)
 }
