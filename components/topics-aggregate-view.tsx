@@ -1,117 +1,103 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { TopicCard } from '@/components/topic-card'
-import { getTopicsByRange } from '@/lib/data/reports'
-import type { TopicSuggestion } from '@/lib/types'
+import { useEffect, useState } from 'react'
+import dayjs from 'dayjs'
+import { ChevronRight, Loader2 } from 'lucide-react'
+import { listInsightSnapshots, type SnapshotListItem } from '@/lib/data/reports'
 import { cn } from '@/lib/utils'
-
-type Range = 7 | 30
-type Topic = TopicSuggestion & { reportDate: string }
 
 export function TopicsAggregateView({
   categoryId,
-  onJumpToReport,
+  onPick,
 }: {
   categoryId: string
-  onJumpToReport: (date: string) => void
+  onPick: (id: number) => void
 }) {
-  const [range, setRange] = useState<Range>(7)
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [allTopics, setAllTopics] = useState<Topic[]>([])
+  const [items, setItems] = useState<SnapshotListItem[]>([])
+  const [cursor, setCursor] = useState<string | undefined>()
+  const [loading, setLoading] = useState(true)
+  const [done, setDone] = useState(false)
 
   useEffect(() => {
-    getTopicsByRange(categoryId, range).then(setAllTopics)
-    setSelectedTags([])
-  }, [categoryId, range])
+    let alive = true
+    setLoading(true); setDone(false); setCursor(undefined); setItems([])
+    listInsightSnapshots(categoryId, { limit: 20 }).then((r) => {
+      if (!alive) return
+      setItems(r.items)
+      setCursor(r.nextCursor)
+      if (!r.nextCursor) setDone(true)
+      setLoading(false)
+    })
+    return () => { alive = false }
+  }, [categoryId])
 
-  const availableTags = useMemo(() => {
-    const set = new Set<string>()
-    allTopics.forEach((t) => t.tags.forEach((tag) => set.add(tag)))
-    return Array.from(set).sort()
-  }, [allTopics])
+  async function loadMore() {
+    if (!cursor || loading) return
+    setLoading(true)
+    const r = await listInsightSnapshots(categoryId, { limit: 20, cursor })
+    setItems((prev) => [...prev, ...r.items])
+    setCursor(r.nextCursor)
+    if (!r.nextCursor) setDone(true)
+    setLoading(false)
+  }
 
-  const topics = useMemo(() => {
-    if (selectedTags.length === 0) return allTopics
-    return allTopics.filter((t) =>
-      selectedTags.some((tag) => t.tags.includes(tag))
+  if (loading && items.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] p-12 text-center text-sm text-neutral-400">
+        <Loader2 className="animate-spin inline mr-2" size={14} />加载中…
+      </div>
     )
-  }, [allTopics, selectedTags])
+  }
 
-  function toggleTag(tag: string) {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+  if (items.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] p-12 text-center text-sm text-neutral-400">
+        暂无历史快照,先点「最新洞察」→「重新生成」
+      </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-      <div className="flex items-center gap-4 flex-wrap mb-4">
-        <div className="flex gap-0.5 bg-neutral-100 p-0.5 rounded-md text-xs">
-          {([7, 30] as Range[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={cn(
-                'px-3 py-1 rounded transition-colors',
-                range === r
-                  ? 'bg-white text-neutral-900 shadow-sm font-medium'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              )}
-            >
-              近 {r} 天
-            </button>
-          ))}
-        </div>
-        <span className="text-xs text-neutral-400">共命中 {topics.length} 个选题</span>
-      </div>
-
-      {availableTags.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap mb-6 pb-5 border-b border-neutral-100">
-          <span className="text-xs text-neutral-400 shrink-0">标签</span>
-          {availableTags.map((tag) => {
-            const active = selectedTags.includes(tag)
-            return (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={cn(
-                  'text-[11px] px-2.5 py-1 rounded-full transition-colors',
-                  active
-                    ? 'bg-neutral-900 text-white'
-                    : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200/70'
-                )}
-              >
-                {tag}
-              </button>
-            )
-          })}
-          {selectedTags.length > 0 && (
-            <button
-              onClick={() => setSelectedTags([])}
-              className="text-[11px] text-neutral-400 hover:text-neutral-700 ml-1"
-            >
-              清空
-            </button>
-          )}
-        </div>
-      )}
-
-      {topics.length === 0 ? (
-        <div className="py-16 text-center text-sm text-neutral-400">
-          调整筛选条件或等待更多报告生成
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {topics.map((t) => (
-            <TopicCard
-              key={`${t.reportDate}-${t.id}`}
-              topic={t}
-              reportDate={t.reportDate}
-              onJumpToReport={onJumpToReport}
-            />
-          ))}
-        </div>
+    <div className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] divide-y divide-neutral-100">
+      {items.map((it) => {
+        const failed = it.status === 'error'
+        return (
+          <button
+            key={it.id}
+            onClick={() => !failed && onPick(it.id)}
+            disabled={failed}
+            className={cn(
+              'w-full flex items-center gap-4 px-5 py-3.5 text-sm text-left',
+              !failed && 'hover:bg-neutral-50 cursor-pointer',
+              failed && 'cursor-default'
+            )}
+          >
+            <span className="text-neutral-400 tabular-nums w-36">
+              {dayjs(it.generatedAt).format('YYYY-MM-DD HH:mm')}
+            </span>
+            <span className="text-[11px] text-neutral-400 w-32 truncate">{it.model}</span>
+            <span className="flex-1" />
+            {failed ? (
+              <span className="text-red-600 text-xs truncate max-w-[300px]">
+                ✗ {it.errorMessage ?? '失败'}
+              </span>
+            ) : (
+              <span className="text-neutral-700">
+                {it.insightsCount} 条 · 基于 {it.sourceCount} 篇
+              </span>
+            )}
+            {!failed && <ChevronRight size={14} className="text-neutral-400" />}
+          </button>
+        )
+      })}
+      {!done && (
+        <button
+          onClick={loadMore}
+          disabled={loading}
+          className="w-full py-3 text-sm text-neutral-500 hover:text-neutral-900 disabled:opacity-50"
+        >
+          {loading ? <Loader2 size={14} className="animate-spin inline" /> : '加载更多'}
+        </button>
       )}
     </div>
   )
