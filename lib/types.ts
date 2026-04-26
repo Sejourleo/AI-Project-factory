@@ -17,9 +17,13 @@ export const PLATFORMS: Array<{ id: Platform; name: string; color: string; icon:
   { id: 'zhihu',       name: '知乎',       color: '#6366F1', icon: '💡' },
 ]
 
-export type MonitorSettings = {
+export type KeywordConfig = {
+  value: string
   platforms: Platform[]
-  keywords: string[]
+}
+
+export type MonitorSettings = {
+  keywords: KeywordConfig[]
   accounts: Array<{
     platform: Platform
     handle: string
@@ -83,4 +87,34 @@ export type DailyReport = {
   yesterdayHotspots: string[]
   topics: TopicSuggestion[]
   analyzedContentIds: string[]
+}
+
+export type NoteSummary = {
+  noteId: string
+  summary: string
+  keywords: string[]
+  keyPoints: string[]
+  highlights: string[]
+  audience?: string
+}
+
+export type TopicInsight = {
+  title: string
+  angle: string
+  evidenceNoteIds: string[]
+  audience: string
+  contentFormat: string
+  differentiation: string
+  tags: string[]
+}
+
+export type InsightSnapshot = {
+  id: number
+  categoryId: string
+  generatedAt: string
+  status: 'success' | 'error'
+  errorMessage?: string
+  sourceNoteIds: string[]
+  insights: TopicInsight[]
+  model: string
 }
