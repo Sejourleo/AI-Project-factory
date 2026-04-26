@@ -19,7 +19,9 @@ describe('reports data access', () => {
   })
 
   it('getReportByDate 命中返回完整报告，未命中返回 null', async () => {
-    const hit = await getReportByDate('claudecode', '2026-04-19')
+    const list = await getReportList('claudecode')
+    const seededDate = list[0].date
+    const hit = await getReportByDate('claudecode', seededDate)
     expect(hit).not.toBeNull()
     expect(hit!.topics.length).toBeGreaterThanOrEqual(3)
 
