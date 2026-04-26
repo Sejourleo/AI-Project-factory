@@ -43,7 +43,7 @@ export function TopicsAggregateView({
 
   if (loading && items.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] p-12 text-center text-sm text-neutral-400">
+      <div className="bg-white rounded-xl border border-neutral-100 p-12 text-center text-sm text-neutral-400">
         <Loader2 className="animate-spin inline mr-2" size={14} />加载中…
       </div>
     )
@@ -51,14 +51,14 @@ export function TopicsAggregateView({
 
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] p-12 text-center text-sm text-neutral-400">
+      <div className="bg-white rounded-xl border border-neutral-100 p-12 text-center text-sm text-neutral-400">
         暂无历史快照,先点「最新洞察」→「重新生成」
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] divide-y divide-neutral-100">
+    <div className="bg-white rounded-xl shadow-sm divide-y divide-neutral-100">
       {items.map((it) => {
         const failed = it.status === 'error'
         return (
