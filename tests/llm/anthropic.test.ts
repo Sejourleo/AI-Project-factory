@@ -57,4 +57,30 @@ describe('Anthropic LLM client', () => {
       system: 's', user: 'u', schema: {}, schemaName: 'n',
     })).rejects.toThrow(/429/)
   })
+
+  it('forwards caller-supplied signal to fetch', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      content: [{ type: 'tool_use', name: 'n', input: { ok: true } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    const controller = new AbortController()
+    const client = createAnthropicClient({ baseUrl: 'https://x', apiKey: 'k', model: 'm' })
+    await client.generateStructured({ system: 's', user: 'u', schema: {}, schemaName: 'n', signal: controller.signal })
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect((init as RequestInit).signal).toBe(controller.signal)
+  })
+
+  it('defaults to a timeout signal when none supplied', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      content: [{ type: 'tool_use', name: 'n', input: { ok: true } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    const client = createAnthropicClient({ baseUrl: 'https://x', apiKey: 'k', model: 'm' })
+    await client.generateStructured({ system: 's', user: 'u', schema: {}, schemaName: 'n' })
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal)
+    expect((init as RequestInit).signal).not.toBeUndefined()
+  })
 })

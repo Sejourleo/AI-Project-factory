@@ -9,10 +9,12 @@ export function createAnthropicClient(opts: {
       system: string; user: string
       schema: Record<string, unknown>; schemaName: string
       maxTokens?: number
+      signal?: AbortSignal
     }): Promise<T> {
       const url = `${opts.baseUrl.replace(/\/$/, '')}/v1/messages`
       const res = await fetch(url, {
         method: 'POST',
+        signal: args.signal ?? AbortSignal.timeout(60_000),
         headers: {
           'x-api-key': opts.apiKey,
           'anthropic-version': '2023-06-01',

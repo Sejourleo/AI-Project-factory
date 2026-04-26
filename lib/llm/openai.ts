@@ -9,10 +9,12 @@ export function createOpenAIClient(opts: {
       system: string; user: string
       schema: Record<string, unknown>; schemaName: string
       maxTokens?: number
+      signal?: AbortSignal
     }): Promise<T> {
       const url = `${opts.baseUrl.replace(/\/$/, '')}/v1/chat/completions`
       const res = await fetch(url, {
         method: 'POST',
+        signal: args.signal ?? AbortSignal.timeout(60_000),
         headers: {
           Authorization: `Bearer ${opts.apiKey}`,
           'Content-Type': 'application/json',

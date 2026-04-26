@@ -58,4 +58,30 @@ describe('OpenAI-compatible LLM client', () => {
       system: 's', user: 'u', schema: {}, schemaName: 'n',
     })).rejects.toThrow()
   })
+
+  it('forwards caller-supplied signal to fetch', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ ok: true }) } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    const controller = new AbortController()
+    const client = createOpenAIClient({ baseUrl: 'https://x', apiKey: 'k', model: 'm' })
+    await client.generateStructured({ system: 's', user: 'u', schema: {}, schemaName: 'n', signal: controller.signal })
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect((init as RequestInit).signal).toBe(controller.signal)
+  })
+
+  it('defaults to a timeout signal when none supplied', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ ok: true }) } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    const client = createOpenAIClient({ baseUrl: 'https://x', apiKey: 'k', model: 'm' })
+    await client.generateStructured({ system: 's', user: 'u', schema: {}, schemaName: 'n' })
+
+    const [, init] = fetchMock.mock.calls[0]
+    expect((init as RequestInit).signal).toBeInstanceOf(AbortSignal)
+    expect((init as RequestInit).signal).not.toBeUndefined()
+  })
 })
