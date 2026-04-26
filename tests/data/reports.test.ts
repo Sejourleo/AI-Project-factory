@@ -1,13 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { getReportList, getReportByDate, getTopicsByRange } from '@/lib/data/reports'
 
 describe('reports data access', () => {
-  beforeEach(() => {
-    // Fake Date only — leave setTimeout real so data-access sleep() resolves.
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date('2026-04-20T12:00:00Z'))
-  })
-  afterEach(() => vi.useRealTimers())
+  // No fake timers: REPORTS_SEED is built at module load using real Date.now(),
+  // so the rolling 7-day window must match real time to overlap with seeded dates.
 
   it('getReportList 返回该分类所有报告，按日期降序（最新在前）', async () => {
     const list = await getReportList('claudecode')
