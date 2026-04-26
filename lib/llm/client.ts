@@ -1,5 +1,4 @@
 import { createOpenAIClient } from './openai'
-import { createAnthropicClient } from './anthropic'
 
 export interface LLMClient {
   /**
@@ -27,6 +26,5 @@ export function getLLMClient(): LLMClient | null {
   const model = process.env.LLM_MODEL
   if (!provider || !baseUrl || !apiKey || !model) return null
   if (provider === 'openai') return createOpenAIClient({ baseUrl, apiKey, model })
-  if (provider === 'anthropic') return createAnthropicClient({ baseUrl, apiKey, model })
   return null
 }
