@@ -1,4 +1,4 @@
-import type { DailyReport, TopicSuggestion } from '@/lib/types'
+import type { DailyReport, TopicSuggestion, InsightSnapshot } from '@/lib/types'
 import { REPORTS_SEED } from '@/lib/fixtures/reports'
 import { pastNDays } from '@/lib/utils/dates'
 
@@ -73,4 +73,74 @@ export async function getHotTags(
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
     .slice(0, limit)
+}
+
+export type SnapshotListItem = {
+  id: number
+  generatedAt: string
+  status: 'success' | 'error'
+  errorMessage?: string
+  model: string
+  insightsCount: number
+  sourceCount: number
+}
+
+export async function getLatestInsight(
+  categoryId: string
+): Promise<InsightSnapshot | null> {
+  const res = await fetch(
+    `/api/insights/latest?categoryId=${encodeURIComponent(categoryId)}`,
+    { cache: 'no-store' }
+  )
+  if (!res.ok) return null
+  return (await res.json()) as InsightSnapshot | null
+}
+
+export async function listInsightSnapshots(
+  categoryId: string,
+  opts?: { limit?: number; cursor?: string }
+): Promise<{ items: SnapshotListItem[]; nextCursor?: string }> {
+  const qs = new URLSearchParams({ categoryId })
+  if (opts?.limit) qs.set('limit', String(opts.limit))
+  if (opts?.cursor) qs.set('cursor', opts.cursor)
+  const res = await fetch(`/api/insights?${qs}`, { cache: 'no-store' })
+  if (!res.ok) return { items: [] }
+  return (await res.json()) as { items: SnapshotListItem[]; nextCursor?: string }
+}
+
+export async function getInsightSnapshot(
+  id: number
+): Promise<InsightSnapshot | null> {
+  const res = await fetch(`/api/insights/${id}`, { cache: 'no-store' })
+  if (!res.ok) return null
+  return (await res.json()) as InsightSnapshot
+}
+
+export async function regenerateInsight(
+  categoryId: string
+): Promise<{
+  ok: boolean
+  snapshotId?: number
+  insightsCount?: number
+  sourceCount?: number
+  error?: string
+}> {
+  const res = await fetch('/api/insights/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ categoryId }),
+  })
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: (body.error as string) ?? `HTTP ${res.status}`,
+    }
+  }
+  return {
+    ok: true,
+    snapshotId: body.snapshotId as number,
+    insightsCount: body.insightsCount as number,
+    sourceCount: body.sourceCount as number,
+  }
 }
