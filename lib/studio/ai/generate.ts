@@ -1,4 +1,3 @@
-// lib/ai/generate.ts
 import type { Platform, PlatformSettings, TwitterModeHint, Chunk, XhsContent, Scene, TwitterContent } from '../types';
 import {
   mockWechatHtml,

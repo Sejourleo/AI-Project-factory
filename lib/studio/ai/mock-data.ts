@@ -1,4 +1,3 @@
-// lib/ai/mock-data.ts
 import type { Platform, Settings, XhsContent, Scene, TwitterContent } from '../types';
 
 export const defaultSettings: Settings = {

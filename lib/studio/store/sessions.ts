@@ -1,4 +1,3 @@
-// lib/store/sessions.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';

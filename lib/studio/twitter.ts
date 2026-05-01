@@ -1,4 +1,3 @@
-// lib/twitter.ts
 import { nanoid } from 'nanoid';
 import type { ThreadTweet } from './types';
 

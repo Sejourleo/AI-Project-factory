@@ -15,7 +15,7 @@ export interface StreamWechatOptions {
 }
 
 /**
- * 调用 /api/generate（Next.js route 转发到 SiliconFlow），把 OpenAI SSE delta
+ * 调用 /api/studio/generate（Next.js route 转发到 SiliconFlow），把 OpenAI SSE delta
  * 转成内部 Chunk 协议。每次有新文本就 yield 一个 { kind: 'text', value }。
  */
 export async function* streamWechatFromApi(opts: StreamWechatOptions): AsyncGenerator<Chunk> {

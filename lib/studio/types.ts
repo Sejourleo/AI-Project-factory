@@ -1,5 +1,3 @@
-// lib/types.ts
-
 export type Platform = 'wechat' | 'xhs' | 'twitter' | 'video';
 
 export const ALL_PLATFORMS: Platform[] = ['wechat', 'xhs', 'twitter', 'video'];
