@@ -30,7 +30,7 @@ export default defineConfig({
           globals: true,
           setupFiles: ['./vitest.setup.ts'],
           fakeTimers: { toFake: ['Date'] },
-          include: ['lib/studio/**/*.test.ts', 'lib/studio/**/__tests__/*.test.ts'],
+          include: ['lib/studio/**/*.test.ts'],
         },
       },
     ],
