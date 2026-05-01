@@ -5,22 +5,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const links = [
-  { href: '/', label: '首页' },
-  { href: '/settings', label: '设置' },
+  { href: '/studio', label: '首页' },
+  { href: '/studio/settings', label: '设置' },
 ];
 
 export function TopNav() {
   const pathname = usePathname();
 
   function isActive(href: string) {
-    if (href === '/') return pathname === '/';
+    if (href === '/studio') return pathname === '/studio';
     return pathname.startsWith(href);
   }
 
   return (
     <header className="fixed top-0 inset-x-0 z-40 h-14 bg-[var(--color-bg)]/80 backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="font-serif text-lg tracking-tight">
+        <Link href="/studio" className="font-serif text-lg tracking-tight">
           内容工厂
         </Link>
         <nav className="flex items-center gap-1">

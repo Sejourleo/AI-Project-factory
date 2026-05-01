@@ -51,14 +51,14 @@ export function Sidebar({ currentId }: Props) {
     const id = confirmDelete.id;
     deleteSession(id);
     setConfirmDelete(null);
-    if (id === currentId) router.push('/');
+    if (id === currentId) router.push('/studio');
   }
 
   return (
     <aside className="w-60 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-bg)]
                       flex flex-col h-[calc(100vh-3.5rem)] sticky top-14">
       <div className="p-3 space-y-2">
-        <Link href="/" className="block">
+        <Link href="/studio" className="block">
           <Button variant="ghost" size="sm" className="w-full justify-start">+ 新建</Button>
         </Link>
         <input
@@ -87,7 +87,7 @@ export function Sidebar({ currentId }: Props) {
                     </div>
                   ) : (
                     <Link
-                      href={`/workspace/${s.id}`}
+                      href={`/studio/workspace/${s.id}`}
                       className={
                         'block px-2 py-1.5 rounded-md text-sm truncate transition-colors ' +
                         (s.id === currentId
