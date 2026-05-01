@@ -1,6 +1,9 @@
 import type { ContentItem, Platform } from '@/lib/types'
+import { PLATFORMS } from '@/lib/types'
 import { CATEGORIES_SEED } from './categories'
 import { pastNDays } from '@/lib/utils/dates'
+
+const ALL_PLATFORMS: Platform[] = PLATFORMS.map((p) => p.id)
 
 const TITLE_TEMPLATES: Record<string, string[]> = {
   claudecode: [
@@ -88,7 +91,7 @@ function generateForDay(
 ): ContentItem[] {
   const cat = CATEGORIES_SEED.find((c) => c.id === categoryId)!
   const titles = TITLE_TEMPLATES[categoryId] ?? TITLE_TEMPLATES.claudecode
-  const platforms: Platform[] = cat.settings.platforms
+  const platforms: Platform[] = ALL_PLATFORMS
   const count = 15 + (hash(`${categoryId}-${date}`) % 11)  // 15-25 条
 
   const items: ContentItem[] = []
@@ -99,7 +102,7 @@ function generateForDay(
     const author = pick(AUTHORS, seed + i * 3)
     const useKeyword = (seed % 2) === 0
     const matchedBy = useKeyword
-      ? { type: 'keyword' as const, value: pick(cat.settings.keywords, seed) }
+      ? { type: 'keyword' as const, value: pick(cat.settings.keywords, seed).value }
       : { type: 'account' as const, value: pick(cat.settings.accounts, seed).displayName }
 
     const hotScore =

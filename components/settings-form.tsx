@@ -1,21 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { Clock, Pause, Play, Trash2, X } from 'lucide-react'
+import { Clock, Pause, Play, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { AddAccountDialog } from '@/components/add-account-dialog'
 import { useCategories } from '@/components/categories-provider'
 import { PLATFORMS, type MonitorSettings, type Platform } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+const ALL_PLATFORMS: Platform[] = PLATFORMS.map((p) => p.id)
+
 export function SettingsForm({ categoryId }: { categoryId: string }) {
   const { getById, updateSettings } = useCategories()
   const cat = getById(categoryId)
   const [settings, setSettings] = useState<MonitorSettings>(
-    cat?.settings ?? { platforms: [], keywords: [], accounts: [] }
+    cat?.settings ?? { keywords: [], accounts: [] }
   )
   const [keywordInput, setKeywordInput] = useState('')
   const [pausedAccounts, setPausedAccounts] = useState<Set<string>>(new Set())
@@ -33,24 +34,34 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
 
   const dirty = JSON.stringify(settings) !== JSON.stringify(cat.settings)
 
-  function togglePlatform(p: Platform) {
-    setSettings((s) => ({
-      ...s,
-      platforms: s.platforms.includes(p)
-        ? s.platforms.filter((x) => x !== p)
-        : [...s.platforms, p],
-    }))
-  }
-
   function addKeyword() {
     const v = keywordInput.trim()
-    if (!v || settings.keywords.includes(v)) return
-    setSettings((s) => ({ ...s, keywords: [...s.keywords, v] }))
+    if (!v || settings.keywords.some((k) => k.value === v)) return
+    setSettings((s) => ({
+      ...s,
+      keywords: [...s.keywords, { value: v, platforms: [...ALL_PLATFORMS] }],
+    }))
     setKeywordInput('')
   }
 
-  function removeKeyword(k: string) {
-    setSettings((s) => ({ ...s, keywords: s.keywords.filter((x) => x !== k) }))
+  function removeKeyword(value: string) {
+    setSettings((s) => ({ ...s, keywords: s.keywords.filter((k) => k.value !== value) }))
+  }
+
+  function togglePlatform(value: string, platform: Platform) {
+    setSettings((s) => ({
+      ...s,
+      keywords: s.keywords.map((k) =>
+        k.value === value
+          ? {
+              ...k,
+              platforms: k.platforms.includes(platform)
+                ? k.platforms.filter((p) => p !== platform)
+                : [...k.platforms, platform],
+            }
+          : k
+      ),
+    }))
   }
 
   function addAccount(a: { platform: Platform; handle: string; displayName: string }) {
@@ -75,8 +86,12 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
   }
 
   async function save() {
-    if (settings.platforms.length === 0) {
-      toast.error('至少启用一个平台')
+    if (settings.keywords.length === 0) {
+      toast.error('至少添加一个关键词')
+      return
+    }
+    if (settings.keywords.some((k) => k.platforms.length === 0)) {
+      toast.error('每个关键词至少启用一个平台')
       return
     }
     setSaving(true)
@@ -97,43 +112,14 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
       </div>
 
       <section className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-        <h3 className="text-sm font-medium text-neutral-500 mb-4">监控平台</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {PLATFORMS.map((p) => {
-            const enabled = settings.platforms.includes(p.id)
-            return (
-              <label
-                key={p.id}
-                className={cn(
-                  'flex items-center justify-between gap-2 rounded-xl px-4 py-3 cursor-pointer transition-colors',
-                  enabled ? 'bg-neutral-100' : 'bg-neutral-50 hover:bg-neutral-100/70'
-                )}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="size-2 rounded-full shrink-0"
-                    style={{ backgroundColor: p.color, opacity: enabled ? 1 : 0.4 }}
-                  />
-                  <span className={cn('text-sm truncate', enabled ? 'text-neutral-900' : 'text-neutral-400')}>
-                    {p.name}
-                  </span>
-                </div>
-                <Switch
-                  checked={enabled}
-                  onCheckedChange={() => togglePlatform(p.id)}
-                />
-              </label>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
         <div className="flex items-baseline justify-between mb-4">
-          <h3 className="text-sm font-medium text-neutral-500">对标关键词</h3>
+          <div>
+            <h3 className="text-sm font-medium text-neutral-500">对标关键词</h3>
+            <p className="text-[11px] text-neutral-400 mt-0.5">每个关键词可独立选择监控平台</p>
+          </div>
           <span className="text-[11px] text-neutral-400">共 {settings.keywords.length} 个</span>
         </div>
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mb-4">
           <Input
             value={keywordInput}
             onChange={(e) => setKeywordInput(e.target.value)}
@@ -152,21 +138,53 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
         {settings.keywords.length === 0 ? (
           <p className="text-xs text-neutral-400">暂无关键词</p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col gap-2">
             {settings.keywords.map((k) => (
-              <span
-                key={k}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-neutral-100 text-xs text-neutral-700"
+              <div
+                key={k.value}
+                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-neutral-50"
               >
-                {k}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span className="text-sm text-neutral-900 truncate min-w-[5rem] max-w-[10rem]">
+                    {k.value}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PLATFORMS.map((p) => {
+                      const enabled = k.platforms.includes(p.id)
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => togglePlatform(k.value, p.id)}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-2 h-6 rounded-md text-[11px] transition-colors border',
+                            enabled
+                              ? 'text-white border-transparent'
+                              : 'bg-white border-neutral-200 text-neutral-400 hover:text-neutral-700'
+                          )}
+                          style={
+                            enabled
+                              ? { backgroundColor: p.color }
+                              : undefined
+                          }
+                          aria-pressed={enabled}
+                          aria-label={`${p.name} ${enabled ? '已启用' : '未启用'}`}
+                        >
+                          <span>{p.icon}</span>
+                          <span>{p.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
                 <button
-                  onClick={() => removeKeyword(k)}
-                  className="text-neutral-400 hover:text-neutral-900 transition-colors"
-                  aria-label={`移除 ${k}`}
+                  onClick={() => removeKeyword(k.value)}
+                  className="size-7 flex items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-200/70 hover:text-neutral-900 transition-colors shrink-0"
+                  aria-label={`移除 ${k.value}`}
                 >
-                  <X size={11} />
+                  <Trash2 size={13} />
                 </button>
-              </span>
+              </div>
             ))}
           </div>
         )}

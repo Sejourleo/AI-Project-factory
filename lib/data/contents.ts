@@ -1,7 +1,8 @@
-import type { ContentItem, Platform } from '@/lib/types'
+import type { ContentItem, KeywordConfig, Platform } from '@/lib/types'
 import { PLATFORMS } from '@/lib/types'
 import { CONTENTS_SEED } from '@/lib/fixtures/contents'
 import { getWechatArticles } from '@/lib/data/wechat'
+import { getXhsNotes } from '@/lib/data/xhs'
 import { pastNDays } from '@/lib/utils/dates'
 
 async function sleep(ms: number) {
@@ -19,15 +20,17 @@ export async function getContentsByDate(
   categoryId: string,
   date: string,
   platforms?: Platform[],
-  wechatKeywords?: string[]
+  keywords?: KeywordConfig[]
 ): Promise<ContentItem[]> {
   // TODO(api): GET /api/contents?categoryId=...&date=...&platforms=...
   await sleep(50)
   const noFilter = !platforms || platforms.length === 0
   const needsWechat = noFilter || platforms!.includes('wechat')
-  const needsOthers = noFilter || platforms!.some((p) => p !== 'wechat')
+  const needsXhs = noFilter || platforms!.includes('xiaohongshu')
+  const needsFixture =
+    noFilter || platforms!.some((p) => p !== 'wechat' && p !== 'xiaohongshu')
 
-  const fixture = needsOthers
+  const fixture = needsFixture
     ? CONTENTS_SEED.filter(
         (c) =>
           c.categoryId === categoryId &&
@@ -37,12 +40,18 @@ export async function getContentsByDate(
     : []
 
   const wechat = needsWechat
-    ? (await getWechatArticles(categoryId, wechatKeywords)).filter((c) =>
+    ? (await getWechatArticles(categoryId, keywords)).filter((c) =>
         c.publishedAt.startsWith(date)
       )
     : []
 
-  return [...wechat, ...fixture].sort((a, b) => b.hotScore - a.hotScore)
+  const xhs = needsXhs
+    ? (await getXhsNotes(categoryId, keywords)).filter((c) =>
+        c.publishedAt.startsWith(date)
+      )
+    : []
+
+  return [...xhs, ...wechat, ...fixture].sort((a, b) => b.hotScore - a.hotScore)
 }
 
 export type DateBucket = {
@@ -54,12 +63,15 @@ export type DateBucket = {
 export async function getDateBuckets(
   categoryId: string,
   days = 14,
-  wechatKeywords?: string[]
+  keywords?: KeywordConfig[]
 ): Promise<DateBucket[]> {
   // TODO(api): GET /api/contents/buckets?categoryId=...&days=...
   await sleep(30)
   const dates = pastNDays(days)
-  const wechat = await getWechatArticles(categoryId, wechatKeywords)
+  const [wechat, xhs] = await Promise.all([
+    getWechatArticles(categoryId, keywords),
+    getXhsNotes(categoryId, keywords),
+  ])
   return dates.map((date) => {
     const platforms = emptyPlatformCounts()
     let count = 0
@@ -72,6 +84,12 @@ export async function getDateBuckets(
     for (const w of wechat) {
       if (w.publishedAt.startsWith(date)) {
         platforms.wechat += 1
+        count += 1
+      }
+    }
+    for (const x of xhs) {
+      if (x.publishedAt.startsWith(date)) {
+        platforms.xiaohongshu += 1
         count += 1
       }
     }

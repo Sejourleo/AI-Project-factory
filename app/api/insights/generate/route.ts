@@ -18,7 +18,7 @@ const TOP_N = 10
 const WINDOW_DAYS = 7
 const STAGE1_CONCURRENCY = 5
 
-type TopNote = {
+export type TopNote = {
   id: string; platform: Platform; title: string; author: string
   summary: string; raw: string; hotScore: number
 }
@@ -38,7 +38,29 @@ function pickTopNotes(db: Database.Database, categoryId: string): TopNote[] {
   }))
 }
 
-async function stage1(
+export function pickNotesByKeywords(
+  db: Database.Database, categoryId: string, keywords: string[], limit = 15
+): TopNote[] {
+  if (keywords.length === 0) return []
+  const likeClauses = keywords.map(() => '(keyword = ? OR title LIKE ? OR summary LIKE ?)').join(' OR ')
+  const params: unknown[] = [categoryId]
+  for (const kw of keywords) {
+    params.push(kw, `%${kw}%`, `%${kw}%`)
+  }
+  const rows = db.prepare(`
+    SELECT * FROM collected_notes
+    WHERE category_id = ? AND (${likeClauses})
+    ORDER BY hot_score DESC, published_at DESC
+    LIMIT ?
+  `).all(...params, limit) as NoteRow[]
+  return rows.map((r) => ({
+    id: r.id, platform: r.platform as Platform,
+    title: r.title, author: r.author, summary: r.summary,
+    raw: r.raw, hotScore: r.hot_score,
+  }))
+}
+
+export async function stage1(
   db: Database.Database, llm: LLMClient, notes: TopNote[]
 ): Promise<NoteSummary[]> {
   const cached = getNoteSummaries(db, notes.map((n) => n.id))

@@ -1,6 +1,9 @@
 # Brainstorm visual companion session files
 .superpowers/
 
+# Local SQLite data
+data/
+
 # macOS
 .DS_Store
 

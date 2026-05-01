@@ -144,3 +144,33 @@ export async function regenerateInsight(
     sourceCount: body.sourceCount as number,
   }
 }
+
+export async function generateByKeyword(
+  categoryId: string,
+  keywords: string[]
+): Promise<{
+  ok: boolean
+  snapshotId?: number
+  insightsCount?: number
+  sourceCount?: number
+  error?: string
+}> {
+  const res = await fetch('/api/insights/generate-by-keyword', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ categoryId, keywords }),
+  })
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: (body.error as string) ?? `HTTP ${res.status}`,
+    }
+  }
+  return {
+    ok: true,
+    snapshotId: body.snapshotId as number,
+    insightsCount: body.insightsCount as number,
+    sourceCount: body.sourceCount as number,
+  }
+}

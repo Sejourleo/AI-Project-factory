@@ -6,6 +6,7 @@ import { DateTimeline } from '@/components/date-timeline'
 import { PlatformFilter } from '@/components/platform-filter'
 import { StatPanel } from '@/components/stat-panel'
 import { ContentGrid } from '@/components/content-grid'
+import { RefreshMenu } from '@/components/refresh-menu'
 import { useCategories } from '@/components/categories-provider'
 import { getContentsByDate } from '@/lib/data/contents'
 import { yesterday } from '@/lib/utils/dates'
@@ -18,7 +19,7 @@ export default function ContentPage({
 }) {
   const { categoryId } = use(params)
   const { getById } = useCategories()
-  const wechatKeywords = getById(categoryId)?.settings.keywords
+  const keywords = getById(categoryId)?.settings.keywords
   const router = useRouter()
   const pathname = usePathname()
   const search = useSearchParams()
@@ -28,11 +29,12 @@ export default function ContentPage({
     (platformParam as Platform | null) ?? null
 
   const [items, setItems] = useState<ContentItem[]>([])
+  const [refreshTick, setRefreshTick] = useState(0)
 
   useEffect(() => {
     const ps = selectedPlatform ? [selectedPlatform] : undefined
-    getContentsByDate(categoryId, selectedDate, ps, wechatKeywords).then(setItems)
-  }, [categoryId, selectedDate, selectedPlatform, wechatKeywords])
+    getContentsByDate(categoryId, selectedDate, ps, keywords).then(setItems)
+  }, [categoryId, selectedDate, selectedPlatform, keywords, refreshTick])
 
   function updateParam(key: string, value: string | null) {
     const qs = new URLSearchParams(search.toString())
@@ -44,15 +46,22 @@ export default function ContentPage({
   return (
     <div className="p-8 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
       <div className="flex flex-col gap-6 min-w-0">
-        <PlatformFilter
-          selected={selectedPlatform}
-          onChange={(p) => updateParam('platform', p)}
-        />
+        <div className="flex items-start justify-between gap-4">
+          <PlatformFilter
+            selected={selectedPlatform}
+            onChange={(p) => updateParam('platform', p)}
+          />
+          <RefreshMenu
+            categoryId={categoryId}
+            keywords={keywords}
+            onRefreshed={() => setRefreshTick((n) => n + 1)}
+          />
+        </div>
         <DateTimeline
           categoryId={categoryId}
           value={selectedDate}
           platformFilter={selectedPlatform}
-          wechatKeywords={wechatKeywords}
+          keywords={keywords}
           onChange={(d) => updateParam('date', d)}
         />
         <ContentGrid items={items} date={selectedDate} />

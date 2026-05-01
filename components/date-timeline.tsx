@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import { getDateBuckets, type DateBucket } from '@/lib/data/contents'
-import { PLATFORMS, type Platform } from '@/lib/types'
+import { PLATFORMS, type KeywordConfig, type Platform } from '@/lib/types'
 import { formatDow } from '@/lib/utils/dates'
 import { cn } from '@/lib/utils'
 
@@ -22,13 +22,13 @@ export function DateTimeline({
   categoryId,
   value,
   platformFilter,
-  wechatKeywords,
+  keywords,
   onChange,
 }: {
   categoryId: string
   value: string
   platformFilter: Platform | null
-  wechatKeywords?: string[]
+  keywords?: KeywordConfig[]
   onChange: (date: string) => void
 }) {
   const [buckets, setBuckets] = useState<DateBucket[]>([])
@@ -36,14 +36,14 @@ export function DateTimeline({
 
   useEffect(() => {
     let cancelled = false
-    getDateBuckets(categoryId, DAY_COUNT + 1, wechatKeywords).then((all) => {
+    getDateBuckets(categoryId, DAY_COUNT + 1, keywords).then((all) => {
       if (cancelled) return
       // Exclude "today" since default view is yesterday-back.
       const past = all.filter((b) => b.date !== todayStr).slice(-DAY_COUNT)
       setBuckets(past.reverse()) // newest (yesterday) first
     })
     return () => { cancelled = true }
-  }, [categoryId, todayStr, wechatKeywords])
+  }, [categoryId, todayStr, keywords])
 
   return (
     <div className="grid grid-cols-11 gap-2">

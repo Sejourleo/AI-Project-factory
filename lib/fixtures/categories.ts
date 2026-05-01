@@ -1,4 +1,11 @@
-import type { Category } from '@/lib/types'
+import type { Category, KeywordConfig, Platform } from '@/lib/types'
+import { PLATFORMS } from '@/lib/types'
+
+const ALL_PLATFORMS: Platform[] = PLATFORMS.map((p) => p.id)
+
+function kw(values: string[]): KeywordConfig[] {
+  return values.map((value) => ({ value, platforms: [...ALL_PLATFORMS] }))
+}
 
 export const CATEGORIES_SEED: Category[] = [
   {
@@ -7,8 +14,7 @@ export const CATEGORIES_SEED: Category[] = [
     color: '#6366f1',
     createdAt: '2026-03-01',
     settings: {
-      platforms: ['douyin', 'xiaohongshu', 'weibo', 'bilibili'],
-      keywords: ['Claude Code', 'Anthropic', 'AI 编程助手', 'MCP', 'Subagent', 'Claude 工作流'],
+      keywords: kw(['Claude Code', 'Anthropic', 'AI 编程助手', 'MCP', 'Subagent', 'Claude 工作流']),
       accounts: [
         { platform: 'bilibili',    handle: 'ai-coder-01',   displayName: 'AI 编程老王' },
         { platform: 'xiaohongshu', handle: 'vibecode_girl', displayName: 'Vibe Coding 小姐姐' },
@@ -22,8 +28,7 @@ export const CATEGORIES_SEED: Category[] = [
     color: '#10b981',
     createdAt: '2026-03-10',
     settings: {
-      platforms: ['xiaohongshu', 'weibo', 'bilibili'],
-      keywords: ['Vibe Coding', 'AI 结对编程', 'Cursor', '氛围编程'],
+      keywords: kw(['Vibe Coding', 'AI 结对编程', 'Cursor', '氛围编程']),
       accounts: [
         { platform: 'bilibili',    handle: 'fe-with-ai',    displayName: '前端 AI 玩家' },
         { platform: 'xiaohongshu', handle: 'nocode_lady',   displayName: '低代码女孩' },
@@ -36,8 +41,7 @@ export const CATEGORIES_SEED: Category[] = [
     color: '#f59e0b',
     createdAt: '2026-03-15',
     settings: {
-      platforms: ['douyin', 'xiaohongshu', 'weibo', 'bilibili'],
-      keywords: ['AI Agent', 'AI 助手', 'ChatGPT', 'AI 产品', 'LLM 应用'],
+      keywords: kw(['AI Agent', 'AI 助手', 'ChatGPT', 'AI 产品', 'LLM 应用']),
       accounts: [
         { platform: 'weibo',    handle: 'ai_watcher',    displayName: 'AI 产品观察' },
         { platform: 'bilibili', handle: 'tech_reviewer', displayName: '硬核测评师' },
