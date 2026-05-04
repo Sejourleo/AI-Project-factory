@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import { db, sql, ensureMigrated } from './client'
 import type { Category, KeywordConfig, MonitorSettings, Platform } from '@/lib/types'
 import { CATEGORY_COLORS } from '@/lib/types'
 import { today } from '@/lib/utils/dates'
@@ -8,110 +8,123 @@ type CategoryRow = {
   name: string
   color: string
   created_at: string
-  accounts: string
+  accounts: MonitorSettings['accounts']
 }
 
 type KeywordRow = {
   id: number
   category_id: string
   value: string
-  platforms: string
+  platforms: Platform[]
   created_at: string
 }
 
 function rowToCategory(row: CategoryRow, keywords: KeywordConfig[]): Category {
-  const accounts = JSON.parse(row.accounts) as MonitorSettings['accounts']
   return {
     id: row.id,
     name: row.name,
     color: row.color,
     createdAt: row.created_at,
-    settings: { keywords, accounts },
+    settings: { keywords, accounts: row.accounts ?? [] },
   }
 }
 
-function loadKeywordsFor(db: Database.Database, ids: string[]): Map<string, KeywordConfig[]> {
+async function loadKeywordsFor(ids: string[]): Promise<Map<string, KeywordConfig[]>> {
   const out = new Map<string, KeywordConfig[]>()
   if (ids.length === 0) return out
-  const placeholders = ids.map(() => '?').join(',')
-  const rows = db
-    .prepare(`SELECT * FROM keyword_configs WHERE category_id IN (${placeholders}) ORDER BY id`)
-    .all(...ids) as KeywordRow[]
+  const { rows } = await db.query<KeywordRow>(
+    `SELECT * FROM keyword_configs WHERE category_id = ANY($1::text[]) ORDER BY id`,
+    [ids],
+  )
   for (const id of ids) out.set(id, [])
   for (const r of rows) {
-    out.get(r.category_id)!.push({
-      value: r.value,
-      platforms: JSON.parse(r.platforms) as Platform[],
-    })
+    out.get(r.category_id)!.push({ value: r.value, platforms: r.platforms })
   }
   return out
 }
 
-export function listCategories(db: Database.Database): Category[] {
-  const rows = db
-    .prepare('SELECT * FROM categories ORDER BY created_at, id')
-    .all() as CategoryRow[]
-  const kwMap = loadKeywordsFor(db, rows.map((r) => r.id))
+export async function listCategories(): Promise<Category[]> {
+  await ensureMigrated()
+  const { rows } = await sql<CategoryRow>`
+    SELECT id, name, color, created_at, accounts
+    FROM categories
+    ORDER BY created_at, id
+  `
+  const kwMap = await loadKeywordsFor(rows.map((r) => r.id))
   return rows.map((r) => rowToCategory(r, kwMap.get(r.id) ?? []))
 }
 
-export function getCategoryById(db: Database.Database, id: string): Category | undefined {
-  const row = db.prepare('SELECT * FROM categories WHERE id = ?').get(id) as CategoryRow | undefined
-  if (!row) return undefined
-  const kwMap = loadKeywordsFor(db, [id])
-  return rowToCategory(row, kwMap.get(id) ?? [])
+export async function getCategoryById(id: string): Promise<Category | undefined> {
+  await ensureMigrated()
+  const { rows } = await sql<CategoryRow>`
+    SELECT id, name, color, created_at, accounts
+    FROM categories
+    WHERE id = ${id}
+  `
+  if (rows.length === 0) return undefined
+  const kwMap = await loadKeywordsFor([id])
+  return rowToCategory(rows[0], kwMap.get(id) ?? [])
 }
 
-export function createCategory(
-  db: Database.Database,
-  input: { name: string; color?: string }
-): Category {
-  const existing = db.prepare('SELECT count(*) as n FROM categories').get() as { n: number }
-  const color = input.color ?? CATEGORY_COLORS[existing.n % CATEGORY_COLORS.length]
+export async function createCategory(
+  input: { name: string; color?: string },
+): Promise<Category> {
+  await ensureMigrated()
+  const { rows: countRows } = await sql<{ n: number }>`SELECT count(*)::int AS n FROM categories`
+  const color = input.color ?? CATEGORY_COLORS[countRows[0].n % CATEGORY_COLORS.length]
   const id = `cat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const created_at = today()
-  db.prepare(`
+  await sql`
     INSERT INTO categories (id, name, color, created_at, accounts)
-    VALUES (?, ?, ?, ?, '[]')
-  `).run(id, input.name, color, created_at)
+    VALUES (${id}, ${input.name}, ${color}, ${created_at}, '[]'::jsonb)
+  `
   return {
     id, name: input.name, color, createdAt: created_at,
     settings: { keywords: [], accounts: [] },
   }
 }
 
-export function updateCategoryName(db: Database.Database, id: string, name: string): void {
-  db.prepare('UPDATE categories SET name = ? WHERE id = ?').run(name, id)
+export async function updateCategoryName(id: string, name: string): Promise<void> {
+  await ensureMigrated()
+  await sql`UPDATE categories SET name = ${name} WHERE id = ${id}`
 }
 
-export function updateCategoryAccounts(
-  db: Database.Database,
+export async function updateCategoryAccounts(
   id: string,
-  accounts: MonitorSettings['accounts']
-): void {
-  db.prepare('UPDATE categories SET accounts = ? WHERE id = ?')
-    .run(JSON.stringify(accounts), id)
+  accounts: MonitorSettings['accounts'],
+): Promise<void> {
+  await ensureMigrated()
+  await sql`UPDATE categories SET accounts = ${JSON.stringify(accounts)}::jsonb WHERE id = ${id}`
 }
 
-export function deleteCategory(db: Database.Database, id: string): void {
-  db.prepare('DELETE FROM categories WHERE id = ?').run(id)
+export async function deleteCategory(id: string): Promise<void> {
+  await ensureMigrated()
+  await sql`DELETE FROM categories WHERE id = ${id}`
 }
 
-export function replaceKeywords(
-  db: Database.Database,
+export async function replaceKeywords(
   categoryId: string,
-  keywords: KeywordConfig[]
-): void {
+  keywords: KeywordConfig[],
+): Promise<void> {
+  await ensureMigrated()
   const created_at = today()
-  const tx = db.transaction(() => {
-    db.prepare('DELETE FROM keyword_configs WHERE category_id = ?').run(categoryId)
-    const insert = db.prepare(`
-      INSERT INTO keyword_configs (category_id, value, platforms, created_at)
-      VALUES (?, ?, ?, ?)
-    `)
+  // PG 没有 SQLite 那种 db.transaction 包装；用显式 BEGIN/COMMIT
+  const client = await db.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(`DELETE FROM keyword_configs WHERE category_id = $1`, [categoryId])
     for (const k of keywords) {
-      insert.run(categoryId, k.value, JSON.stringify(k.platforms), created_at)
+      await client.query(
+        `INSERT INTO keyword_configs (category_id, value, platforms, created_at)
+         VALUES ($1, $2, $3::jsonb, $4)`,
+        [categoryId, k.value, JSON.stringify(k.platforms), created_at],
+      )
     }
-  })
-  tx()
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
 }
