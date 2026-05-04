@@ -1,19 +1,41 @@
-# 内容工厂 · 前端原型
+# 内容工厂
 
-按分类管理内容监控任务的 Next.js 前端原型。所有数据为内置假数据，无后端。
+Next.js 16 + Postgres，单仓库承载两个 Agent：内容采集与选题分析（`/`）+ 多平台内容创作与发布（`/studio`）。
 
 ## 快速开始
 
 ```bash
 npm install
-cp .env.example .env.local   # 填入公众号搜索 API key
+docker compose up -d            # 拉本地 Postgres 16；首次 ~150MB
+cp .env.example .env.local      # 按下方"环境变量"段填值
 npm run dev
 ```
 
-访问 http://localhost:3000
+访问 http://localhost:3000。首次访问任意 API 路由会自动建表 + seed 默认分类。
 
-> `.env.local` 中的 `WECHAT_SEARCH_API_KEY` 仅在服务端使用（`/api/wechat/search` 代理转发），
-> 不会下发到浏览器。未配置时，公众号平台退化为空列表，其它平台仍正常展示。
+## 环境变量
+
+| Key | 用途 |
+|---|---|
+| `POSTGRES_URL` | 数据库连接（本地 docker 默认 `postgres://dev:dev@localhost:5432/content_factory`；生产由 Vercel Postgres 自动注入） |
+| `WECHAT_SEARCH_API_KEY` / `WECHAT_SEARCH_API_URL` | 采集侧公众号关键词搜索 |
+| `LLM_PROVIDER` / `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | 采集侧选题分析（OpenAI 兼容协议） |
+| `SILICONFLOW_API_KEY` / `SILICONFLOW_BASE_URL` / `SILICONFLOW_MODEL` | 创作侧多平台生成 |
+| `WECHAT_API_KEY` / `WECHAT_API_BASE_URL` | 创作侧公众号一键发布 |
+| `CRON_SECRET` | 保护 `/api/cron/daily-insights`（手动 curl 触发时用） |
+
+## 部署到 Vercel
+
+1. push 代码到 GitHub
+2. Vercel → Import Project → 选 Next.js（自动识别）
+3. Storage → Create Database → Postgres → 自动注入 `POSTGRES_URL`
+4. 环境变量手填上面其余 keys
+5. Deploy
+
+`/api/cron/daily-insights` 不挂 schedule（避免 Pro 计划费用），手动触发：
+```
+curl -H "Authorization: Bearer $CRON_SECRET" https://<your-domain>/api/cron/daily-insights
+```
 
 ## 功能
 
@@ -25,21 +47,22 @@ npm run dev
 ## 测试
 
 ```bash
-npx vitest run         # 运行 data / utils 层单元测试
+docker compose up -d   # postgres 必须已起（db 测试连真实 PG）
+npm run test           # monitor (node) + studio (jsdom) 双 environment
 ```
-
-## 将来接入真实后端
-
-所有取数走 `lib/data/*.ts` 的 async 函数。搜索 `TODO(api):` 定位需要改为真实 API 调用的位置。
 
 ## 目录结构
 
-- `app/` — 路由页面（App Router）
-- `components/` — 业务组件 + shadcn/ui（`components/ui/`）
-- `lib/data/` — 数据访问层（当前读 fixtures）
-- `lib/fixtures/` — 假数据（分类 / 内容 / 报告）
-- `lib/types.ts` — 核心类型与平台常量
-- `tests/` — Vitest 单元测试
+- `app/(monitor)/` — 采集侧页面（路由组，URL 不含 `(monitor)/`）
+- `app/studio/` — 创作侧页面（URL 前缀 `/studio`）
+- `app/api/` — 采集 API；`app/api/studio/` — 创作 API
+- `components/` — 采集组件 + shadcn/ui（`components/ui/`）
+- `components/studio/` — 创作侧组件（独立 UI 体系）
+- `lib/db/` — 采集侧 Postgres 数据层（`@vercel/postgres` 兼容的 `pg.Pool` 封装）
+- `lib/data/` — 高层数据访问（部分 fixture，部分 db）
+- `lib/fixtures/` — 默认 seed 数据
+- `lib/studio/` — 创作侧 Zustand store + 业务模块
+- `tests/` — vitest 单测（双 project：monitor 串行连真 PG / studio jsdom）
 
 ## 双 Agent 项目结构
 
