@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3'
+import { db, sql, ensureMigrated } from './client'
 import type { ContentItem, Platform } from '@/lib/types'
 
 export type QueryStatus = 'success' | 'error'
@@ -55,68 +55,70 @@ function rowToSummary(r: QueryRow): QuerySummary {
   }
 }
 
-export function logQuerySuccess(
-  db: Database.Database,
-  input: {
-    categoryId: string
-    keyword: string
-    platform: Platform
-    startedAt: string
-    finishedAt: string
-    notes: Array<{
-      noteId: string
-      hotScore: number | null
-      likes: number | null
-      comments: number | null
-      views: number | null
-    }>
-  }
-): number {
-  let queryId = 0
-  const tx = db.transaction(() => {
-    const info = db.prepare(`
-      INSERT INTO keyword_queries
-        (category_id, keyword, platform, started_at, finished_at, status, returned_count)
-      VALUES (?, ?, ?, ?, ?, 'success', ?)
-    `).run(
-      input.categoryId, input.keyword, input.platform,
-      input.startedAt, input.finishedAt, input.notes.length
+export async function logQuerySuccess(input: {
+  categoryId: string
+  keyword: string
+  platform: Platform
+  startedAt: string
+  finishedAt: string
+  notes: Array<{
+    noteId: string
+    hotScore: number | null
+    likes: number | null
+    comments: number | null
+    views: number | null
+  }>
+}): Promise<number> {
+  await ensureMigrated()
+  const client = await db.connect()
+  try {
+    await client.query('BEGIN')
+    const { rows } = await client.query<{ id: number }>(
+      `INSERT INTO keyword_queries
+         (category_id, keyword, platform, started_at, finished_at, status, returned_count)
+       VALUES ($1, $2, $3, $4, $5, 'success', $6)
+       RETURNING id`,
+      [input.categoryId, input.keyword, input.platform,
+       input.startedAt, input.finishedAt, input.notes.length],
     )
-    queryId = Number(info.lastInsertRowid)
-    const insertNote = db.prepare(`
-      INSERT OR IGNORE INTO query_notes
-        (query_id, note_id, hot_score_snapshot, likes_snapshot, comments_snapshot, views_snapshot)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `)
+    const queryId = rows[0].id
     for (const n of input.notes) {
-      insertNote.run(queryId, n.noteId, n.hotScore, n.likes, n.comments, n.views)
+      await client.query(
+        `INSERT INTO query_notes
+           (query_id, note_id, hot_score_snapshot, likes_snapshot, comments_snapshot, views_snapshot)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (query_id, note_id) DO NOTHING`,
+        [queryId, n.noteId, n.hotScore, n.likes, n.comments, n.views],
+      )
     }
-  })
-  tx()
-  return queryId
+    await client.query('COMMIT')
+    return queryId
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
 }
 
-export function logQueryError(
-  db: Database.Database,
-  input: {
-    categoryId: string
-    keyword: string
-    platform: Platform
-    startedAt: string
-    finishedAt: string
-    errorMessage: string
-  }
-): number {
-  const info = db.prepare(`
+export async function logQueryError(input: {
+  categoryId: string
+  keyword: string
+  platform: Platform
+  startedAt: string
+  finishedAt: string
+  errorMessage: string
+}): Promise<number> {
+  await ensureMigrated()
+  const { rows } = await sql<{ id: number }>`
     INSERT INTO keyword_queries
       (category_id, keyword, platform, started_at, finished_at, status,
        returned_count, error_message)
-    VALUES (?, ?, ?, ?, ?, 'error', 0, ?)
-  `).run(
-    input.categoryId, input.keyword, input.platform,
-    input.startedAt, input.finishedAt, input.errorMessage
-  )
-  return Number(info.lastInsertRowid)
+    VALUES (${input.categoryId}, ${input.keyword}, ${input.platform},
+            ${input.startedAt}, ${input.finishedAt}, 'error', 0, ${input.errorMessage})
+    RETURNING id
+  `
+  return rows[0].id
 }
 
 export type ListQueriesParams = {
@@ -136,6 +138,7 @@ export type ListQueriesResult = {
 function encodeCursor(startedAt: string, id: number): string {
   return Buffer.from(`${startedAt}|${id}`, 'utf8').toString('base64')
 }
+
 function decodeCursor(cursor: string): { startedAt: string; id: number } | null {
   try {
     const decoded = Buffer.from(cursor, 'base64').toString('utf8')
@@ -150,31 +153,34 @@ function decodeCursor(cursor: string): { startedAt: string; id: number } | null 
   }
 }
 
-export function listQueries(
-  db: Database.Database,
-  params: ListQueriesParams
-): ListQueriesResult {
+export async function listQueries(
+  params: ListQueriesParams,
+): Promise<ListQueriesResult> {
+  await ensureMigrated()
   const limit = Math.min(params.limit ?? 50, 200)
-  const where: string[] = ['category_id = @category_id']
-  const bind: Record<string, unknown> = { category_id: params.categoryId, limit: limit + 1 }
-  if (params.keyword) { where.push('keyword = @keyword'); bind.keyword = params.keyword }
-  if (params.platform) { where.push('platform = @platform'); bind.platform = params.platform }
-  if (params.status) { where.push('status = @status'); bind.status = params.status }
+  const where: string[] = ['category_id = $1']
+  const args: unknown[] = [params.categoryId]
+  if (params.keyword) { args.push(params.keyword); where.push(`keyword = $${args.length}`) }
+  if (params.platform) { args.push(params.platform); where.push(`platform = $${args.length}`) }
+  if (params.status) { args.push(params.status); where.push(`status = $${args.length}`) }
   if (params.cursor) {
     const decoded = decodeCursor(params.cursor)
     if (decoded) {
-      where.push('(started_at, id) < (@cursor_started, @cursor_id)')
-      bind.cursor_started = decoded.startedAt
-      bind.cursor_id = decoded.id
+      args.push(decoded.startedAt); const ai = args.length
+      args.push(decoded.id);        const bi = args.length
+      where.push(`(started_at, id) < ($${ai}, $${bi})`)
     }
   }
-  const sql = `
+  args.push(limit + 1)
+  const limitIdx = args.length
+
+  const text = `
     SELECT * FROM keyword_queries
     WHERE ${where.join(' AND ')}
     ORDER BY started_at DESC, id DESC
-    LIMIT @limit
+    LIMIT $${limitIdx}
   `
-  const rows = db.prepare(sql).all(bind) as QueryRow[]
+  const { rows } = await db.query<QueryRow>(text, args)
   const items = rows.slice(0, limit).map(rowToSummary)
   const hasMore = rows.length > limit
   const nextCursor = hasMore
@@ -183,20 +189,18 @@ export function listQueries(
   return { items, nextCursor }
 }
 
-export function getQueryWithNotes(
-  db: Database.Database,
-  queryId: number
-): QueryDetail | undefined {
-  const row = db.prepare('SELECT * FROM keyword_queries WHERE id = ?').get(queryId) as QueryRow | undefined
-  if (!row) return undefined
-  const notes = db.prepare(`
+export async function getQueryWithNotes(queryId: number): Promise<QueryDetail | undefined> {
+  await ensureMigrated()
+  const { rows: qRows } = await sql<QueryRow>`SELECT * FROM keyword_queries WHERE id = ${queryId}`
+  if (qRows.length === 0) return undefined
+  const row = qRows[0]
+  const { rows: notes } = await sql<Record<string, unknown>>`
     SELECT n.*, qn.hot_score_snapshot, qn.likes_snapshot, qn.comments_snapshot, qn.views_snapshot
     FROM query_notes qn
     JOIN collected_notes n ON n.id = qn.note_id
-    WHERE qn.query_id = ?
+    WHERE qn.query_id = ${queryId}
     ORDER BY qn.hot_score_snapshot DESC NULLS LAST, n.id
-  `).all(queryId) as Array<Record<string, unknown>>
-
+  `
   const noteItems: QueryNote[] = notes.map((n) => ({
     id: String(n.id),
     categoryId: String(n.category_id),
@@ -215,7 +219,8 @@ export function getQueryWithNotes(
       views: Number(n.views ?? 0),
     },
     hotScore: Number(n.hot_score ?? 0),
-    tags: JSON.parse(String(n.tags ?? '[]')),
+    // tags 已是 JSONB → JS 数组，不再 JSON.parse
+    tags: (n.tags as string[]) ?? [],
     matchedBy: { type: 'keyword', value: row.keyword },
     snapshot: {
       hotScore: n.hot_score_snapshot == null ? null : Number(n.hot_score_snapshot),
