@@ -17,8 +17,9 @@ export default defineConfig({
           name: 'monitor',
           environment: 'node',
           include: ['tests/**/*.test.ts'],
-          pool: 'forks',
-          poolOptions: { forks: { singleFork: true } },
+          setupFiles: ['./tests/setup-env.ts'],
+          // db 测试共用同一个 Postgres，必须串行避免互相 truncate
+          fileParallelism: false,
         },
       },
       {

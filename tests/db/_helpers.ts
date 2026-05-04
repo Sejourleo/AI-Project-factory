@@ -1,12 +1,20 @@
-import { db } from '@/lib/db/client'
-import { applyMigrations } from '@/lib/db/migrations'
+import { db, ensureMigrated } from '@/lib/db/client'
 
-let migrated = false
+let warmedUp = false
+
+/**
+ * Warm up the lib/db/client cache: run applyMigrations + seedIfEmpty once
+ * so the next ensureMigrated() call within tests is a cache hit (no re-seed).
+ * Must be called before any truncate, otherwise seed data leaks back.
+ */
+async function warmup(): Promise<void> {
+  if (warmedUp) return
+  await ensureMigrated()
+  warmedUp = true
+}
 
 export async function ensureSchema(): Promise<void> {
-  if (migrated) return
-  await applyMigrations()
-  migrated = true
+  await warmup()
 }
 
 /**
@@ -15,7 +23,7 @@ export async function ensureSchema(): Promise<void> {
  * CASCADE 顺带处理依赖，避免顺序问题。
  */
 export async function truncateAll(): Promise<void> {
-  await ensureSchema()
+  await warmup()
   await db.query(`
     TRUNCATE TABLE
       query_notes,
@@ -29,7 +37,7 @@ export async function truncateAll(): Promise<void> {
   `)
 }
 
-/** 给测试用的"空 db" — 不调用 seedIfEmpty，留给测试自己造数据 */
+/** alias for truncateAll */
 export async function resetDb(): Promise<void> {
   await truncateAll()
 }
