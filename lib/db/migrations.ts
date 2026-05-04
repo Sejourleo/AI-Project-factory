@@ -1,4 +1,4 @@
-import { db } from '@vercel/postgres'
+import { db } from './client'
 
 const DDL = `
   CREATE TABLE IF NOT EXISTS collected_notes (

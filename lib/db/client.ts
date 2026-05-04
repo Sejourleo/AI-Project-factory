@@ -1,8 +1,40 @@
-import { sql, db } from '@vercel/postgres'
+import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg'
 import { applyMigrations } from './migrations'
 import { seedIfEmpty } from './seed'
 
-export { sql, db }
+if (!process.env.POSTGRES_URL) {
+  throw new Error(
+    'POSTGRES_URL is not set. Locally: run `docker compose up -d` and copy .env.example to .env.local',
+  )
+}
+
+export const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
+
+// Tagged template literal mimicking @vercel/postgres's `sql` shape but backed
+// by node-postgres. Lets every consumer continue to write `await sql\`SELECT ${x}\`` etc.
+export function sql<T extends QueryResultRow = QueryResultRow>(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<QueryResult<T>> {
+  let text = strings[0]
+  for (let i = 0; i < values.length; i++) {
+    text += `$${i + 1}` + strings[i + 1]
+  }
+  return pool.query<T>(text, values as unknown[])
+}
+
+// `db.query()` / `db.connect()` shape — same as @vercel/postgres so call sites don't change.
+export const db = {
+  query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: unknown[],
+  ): Promise<QueryResult<T>> {
+    return pool.query<T>(text, values as unknown[])
+  },
+  connect(): Promise<PoolClient> {
+    return pool.connect()
+  },
+}
 
 // 每个 lambda/process 实例只跑一次 migrations + seed
 let _migrated: Promise<void> | null = null
@@ -16,8 +48,7 @@ export function ensureMigrated(): Promise<void> {
   return _migrated
 }
 
-// NoteRow 类型对应 collected_notes 表的一行；与 SQLite 版相比，
-// JSONB 列（tags / raw）现在直接是 JS 值，不再是字符串
+// NoteRow 类型对应 collected_notes 表的一行；JSONB 列（tags / raw）已是 JS 值
 export type NoteRow = {
   id: string
   category_id: string
