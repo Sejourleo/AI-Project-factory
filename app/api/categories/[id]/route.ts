@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
 import {
   getCategoryById, updateCategoryName,
   updateCategoryAccounts, deleteCategory,
@@ -17,19 +16,18 @@ export async function PATCH(
   try { body = await req.json() } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
-  const db = getDb()
-  if (!getCategoryById(db, id)) {
+  if (!(await getCategoryById(id))) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
   if (typeof body.name === 'string') {
     const trimmed = body.name.trim()
     if (!trimmed) return NextResponse.json({ error: 'Empty name' }, { status: 400 })
-    updateCategoryName(db, id, trimmed)
+    await updateCategoryName(id, trimmed)
   }
   if (Array.isArray(body.accounts)) {
-    updateCategoryAccounts(db, id, body.accounts)
+    await updateCategoryAccounts(id, body.accounts)
   }
-  return NextResponse.json({ category: getCategoryById(db, id) })
+  return NextResponse.json({ category: await getCategoryById(id) })
 }
 
 export async function DELETE(
@@ -37,10 +35,9 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const { id } = await ctx.params
-  const db = getDb()
-  if (!getCategoryById(db, id)) {
+  if (!(await getCategoryById(id))) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-  deleteCategory(db, id)
+  await deleteCategory(id)
   return NextResponse.json({ ok: true })
 }

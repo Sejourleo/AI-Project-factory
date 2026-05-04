@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
+import { db, ensureMigrated } from '@/lib/db/client'
 import { logQueryError, logQuerySuccess } from '@/lib/db/queries'
 
 export const runtime = 'nodejs'
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const db = getDb()
+  await ensureMigrated()
   let json: UpstreamResponse | null = null
   let lastBusinessError: UpstreamResponse | null = null
   let lastTransportError: { status: number; detail: string } | null = null
@@ -131,7 +131,7 @@ export async function POST(req: Request) {
     if (isRetryable(result.json)) { lastBusinessError = result.json; continue }
     const finishedAt = new Date().toISOString()
     const errMsg = result.json.message ?? result.json.msg ?? `code=${result.json.code}`
-    logQueryError(db, {
+    await logQueryError({
       categoryId, keyword, platform: 'xiaohongshu',
       startedAt, finishedAt, errorMessage: errMsg,
     })
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
     const finishedAt = new Date().toISOString()
     const errMsg = lastBusinessError?.message ?? lastBusinessError?.msg
       ?? `transport ${lastTransportError?.status} ${lastTransportError?.detail ?? ''}`
-    logQueryError(db, {
+    await logQueryError({
       categoryId, keyword, platform: 'xiaohongshu',
       startedAt, finishedAt, errorMessage: errMsg,
     })
@@ -164,33 +164,20 @@ export async function POST(req: Request) {
   const items = json.data?.items ?? []
   const nowIso = new Date().toISOString()
 
-  const upsert = db.prepare(`
-    INSERT INTO collected_notes (
-      id, category_id, platform, keyword,
-      title, summary, author, author_id, author_avatar, author_red_id,
-      url, cover_image, published_at, collected_at,
-      likes, comments, shares, views, hot_score, tags, raw
-    ) VALUES (
-      @id, @category_id, @platform, @keyword,
-      @title, @summary, @author, @author_id, @author_avatar, @author_red_id,
-      @url, @cover_image, @published_at, @collected_at,
-      @likes, @comments, @shares, @views, @hot_score, @tags, @raw
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      title = excluded.title, summary = excluded.summary,
-      author = excluded.author, author_id = excluded.author_id,
-      author_avatar = excluded.author_avatar, author_red_id = excluded.author_red_id,
-      url = excluded.url, cover_image = excluded.cover_image,
-      likes = excluded.likes, comments = excluded.comments,
-      shares = excluded.shares, views = excluded.views,
-      hot_score = excluded.hot_score, tags = excluded.tags,
-      raw = excluded.raw, collected_at = excluded.collected_at
-  `)
-
   type SnapshotEntry = {
     noteId: string; hotScore: number; likes: number; comments: number | null; views: number
   }
-  type RowAndSnapshot = { row: Record<string, unknown>; snap: SnapshotEntry }
+  type PreparedRow = {
+    id: string; category_id: string; platform: string; keyword: string
+    title: string; summary: string; author: string
+    author_id: string | null; author_avatar: string | null; author_red_id: string | null
+    url: string; cover_image: string | null
+    published_at: string; collected_at: string
+    likes: number; comments: number | null; shares: number | null
+    views: number; hot_score: number
+    tags: string[]; raw: unknown
+  }
+  type RowAndSnapshot = { row: PreparedRow; snap: SnapshotEntry }
   const prepared: RowAndSnapshot[] = []
   for (const wrap of items) {
     const note: XhsNote = wrap.note ?? (wrap as XhsNote)
@@ -219,19 +206,58 @@ export async function POST(req: Request) {
         collected_at: nowIso,
         likes, comments: comments ?? null, shares: shares ?? null,
         views: collected, hot_score: hotScore,
-        tags: JSON.stringify(pickTags(note)),
-        raw: JSON.stringify(wrap),
+        tags: pickTags(note),
+        raw: wrap,
       },
       snap: { noteId: id, hotScore, likes, comments: comments ?? null, views: collected },
     })
   }
 
+  const client = await db.connect()
+  try {
+    await client.query('BEGIN')
+    for (const p of prepared) {
+      const r = p.row
+      await client.query(
+        `INSERT INTO collected_notes (
+           id, category_id, platform, keyword,
+           title, summary, author, author_id, author_avatar, author_red_id,
+           url, cover_image, published_at, collected_at,
+           likes, comments, shares, views, hot_score, tags, raw
+         ) VALUES (
+           $1, $2, $3, $4,
+           $5, $6, $7, $8, $9, $10,
+           $11, $12, $13, $14,
+           $15, $16, $17, $18, $19, $20::jsonb, $21::jsonb
+         )
+         ON CONFLICT (id) DO UPDATE SET
+           title = excluded.title, summary = excluded.summary,
+           author = excluded.author, author_id = excluded.author_id,
+           author_avatar = excluded.author_avatar, author_red_id = excluded.author_red_id,
+           url = excluded.url, cover_image = excluded.cover_image,
+           likes = excluded.likes, comments = excluded.comments,
+           shares = excluded.shares, views = excluded.views,
+           hot_score = excluded.hot_score, tags = excluded.tags,
+           raw = excluded.raw, collected_at = excluded.collected_at`,
+        [
+          r.id, r.category_id, r.platform, r.keyword,
+          r.title, r.summary, r.author, r.author_id, r.author_avatar, r.author_red_id,
+          r.url, r.cover_image, r.published_at, r.collected_at,
+          r.likes, r.comments, r.shares, r.views, r.hot_score,
+          JSON.stringify(r.tags), JSON.stringify(r.raw),
+        ],
+      )
+    }
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+
   const finishedAt = new Date().toISOString()
-  const tx = db.transaction(() => {
-    for (const p of prepared) upsert.run(p.row)
-  })
-  tx()
-  logQuerySuccess(db, {
+  await logQuerySuccess({
     categoryId, keyword, platform: 'xiaohongshu',
     startedAt, finishedAt,
     notes: prepared.map((p) => p.snap),

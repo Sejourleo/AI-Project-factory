@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getDb, type NoteRow } from '@/lib/db/client'
+import { db, ensureMigrated, type NoteRow } from '@/lib/db/client'
 import type { ContentItem, Platform } from '@/lib/types'
 
 export const runtime = 'nodejs'
 
 function rowToContentItem(r: NoteRow): ContentItem {
-  let tags: string[] = []
-  try {
-    tags = JSON.parse(r.tags)
-  } catch {
-    tags = []
-  }
   return {
     id: r.id,
     categoryId: r.category_id,
@@ -29,7 +23,7 @@ function rowToContentItem(r: NoteRow): ContentItem {
       views: r.views,
     },
     hotScore: r.hot_score,
-    tags,
+    tags: r.tags ?? [],
     matchedBy: { type: 'keyword', value: r.keyword },
   }
 }
@@ -44,24 +38,25 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Missing categoryId' }, { status: 400 })
   }
 
-  const db = getDb()
-  const clauses: string[] = ['category_id = ?']
+  await ensureMigrated()
+
+  const clauses: string[] = ['category_id = $1']
   const params: unknown[] = [categoryId]
   if (platform) {
-    clauses.push('platform = ?')
     params.push(platform)
+    clauses.push(`platform = $${params.length}`)
   }
   if (date) {
-    clauses.push("substr(published_at, 1, 10) = ?")
     params.push(date)
+    clauses.push(`substr(published_at, 1, 10) = $${params.length}`)
   }
 
-  const sql = `
+  const text = `
     SELECT * FROM collected_notes
     WHERE ${clauses.join(' AND ')}
     ORDER BY hot_score DESC, published_at DESC
     LIMIT 500
   `
-  const rows = db.prepare(sql).all(...params) as NoteRow[]
+  const { rows } = await db.query<NoteRow>(text, params)
   return NextResponse.json({ items: rows.map(rowToContentItem) })
 }

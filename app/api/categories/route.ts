@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
 import { listCategories, createCategory } from '@/lib/db/categories'
 
 export const runtime = 'nodejs'
 
 export async function GET() {
-  const db = getDb()
-  return NextResponse.json({ items: listCategories(db) })
+  return NextResponse.json({ items: await listCategories() })
 }
 
 export async function POST(req: Request) {
@@ -16,7 +14,6 @@ export async function POST(req: Request) {
   }
   const name = (body.name ?? '').trim()
   if (!name) return NextResponse.json({ error: 'Missing name' }, { status: 400 })
-  const db = getDb()
-  const created = createCategory(db, { name })
+  const created = await createCategory({ name })
   return NextResponse.json({ category: created }, { status: 201 })
 }

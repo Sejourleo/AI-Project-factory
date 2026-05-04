@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
+import { db, ensureMigrated } from '@/lib/db/client'
 import { listCategories } from '@/lib/db/categories'
 import { getLLMClient } from '@/lib/llm/client'
 import { runInsightsPipeline } from '@/app/api/insights/generate/route'
@@ -20,8 +20,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'LLM not configured' }, { status: 503 })
   }
 
-  const db = getDb()
-  const categories = listCategories(db)
+  await ensureMigrated()
+  const categories = await listCategories()
 
   const yesterday = new Date(Date.now() - 86400_000)
   const yStr = yesterday.toISOString().slice(0, 10)
@@ -30,10 +30,12 @@ export async function GET(req: Request) {
   const results: Result[] = []
 
   for (const cat of categories) {
-    const count = (db.prepare(`
-      SELECT count(*) as n FROM collected_notes
-      WHERE category_id = ? AND substr(collected_at, 1, 10) = ?
-    `).get(cat.id, yStr) as { n: number }).n
+    const { rows } = await db.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM collected_notes
+       WHERE category_id = $1 AND substr(collected_at, 1, 10) = $2`,
+      [cat.id, yStr],
+    )
+    const count = rows[0]?.n ?? 0
 
     if (count === 0) {
       results.push({ categoryId: cat.id, categoryName: cat.name, status: 'skipped', detail: `${yStr} 无新数据` })
@@ -41,7 +43,7 @@ export async function GET(req: Request) {
     }
 
     try {
-      const r = await runInsightsPipeline(db, llm, cat.id)
+      const r = await runInsightsPipeline(llm, cat.id)
       results.push({
         categoryId: cat.id, categoryName: cat.name, status: 'generated',
         detail: `${r.insightsCount} insights from ${r.sourceCount} notes`,

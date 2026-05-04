@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
 import { getLatestInsightSnapshot } from '@/lib/db/insights'
 
 export const runtime = 'nodejs'
@@ -10,7 +9,6 @@ export async function GET(req: Request) {
   if (!categoryId) {
     return NextResponse.json({ error: 'Missing categoryId' }, { status: 400 })
   }
-  const db = getDb()
-  const snap = getLatestInsightSnapshot(db, categoryId)
+  const snap = await getLatestInsightSnapshot(categoryId)
   return NextResponse.json(snap ?? null)
 }

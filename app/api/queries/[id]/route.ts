@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
 import { getQueryWithNotes } from '@/lib/db/queries'
 
 export const runtime = 'nodejs'
@@ -13,8 +12,7 @@ export async function GET(
   if (!Number.isFinite(queryId) || queryId <= 0) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   }
-  const db = getDb()
-  const detail = getQueryWithNotes(db, queryId)
+  const detail = await getQueryWithNotes(queryId)
   if (!detail) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(detail)
 }

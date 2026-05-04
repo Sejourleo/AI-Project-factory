@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
 import { getCategoryById, replaceKeywords } from '@/lib/db/categories'
 import { PLATFORMS, type KeywordConfig, type Platform } from '@/lib/types'
 
@@ -27,10 +26,9 @@ export async function PUT(
   if (!Array.isArray(body.keywords) || !body.keywords.every(isKeywordConfig)) {
     return NextResponse.json({ error: 'Invalid keywords' }, { status: 400 })
   }
-  const db = getDb()
-  if (!getCategoryById(db, id)) {
+  if (!(await getCategoryById(id))) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-  replaceKeywords(db, id, body.keywords as KeywordConfig[])
-  return NextResponse.json({ category: getCategoryById(db, id) })
+  await replaceKeywords(id, body.keywords as KeywordConfig[])
+  return NextResponse.json({ category: await getCategoryById(id) })
 }

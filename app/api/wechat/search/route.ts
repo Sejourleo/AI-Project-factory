@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
+import { db, ensureMigrated } from '@/lib/db/client'
 import { logQueryError, logQuerySuccess } from '@/lib/db/queries'
 
 export const runtime = 'nodejs'
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     any_kw: '', ex_kw: '', verifycode: '', type: 1,
   }
 
-  const db = getDb()
+  await ensureMigrated()
 
   let json: UpstreamResponse | null = null
   let transportInfo: { status: number; detail: string } | null = null
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
   if (!json || !isSuccess(json)) {
     const finishedAt = new Date().toISOString()
     const errMsg = json?.message ?? json?.msg ?? transportInfo?.detail ?? 'unknown error'
-    logQueryError(db, {
+    await logQueryError({
       categoryId, keyword, platform: 'wechat',
       startedAt, finishedAt, errorMessage: errMsg,
     })
@@ -89,29 +89,17 @@ export async function POST(req: Request) {
 
   const items = json.data?.data ?? []
   const nowIso = new Date().toISOString()
-  const upsert = db.prepare(`
-    INSERT INTO collected_notes (
-      id, category_id, platform, keyword,
-      title, summary, author, author_id, author_avatar, author_red_id,
-      url, cover_image, published_at, collected_at,
-      likes, comments, shares, views, hot_score, tags, raw
-    ) VALUES (
-      @id, @category_id, 'wechat', @keyword,
-      @title, @summary, @author, @author_id, @author_avatar, NULL,
-      @url, NULL, @published_at, @collected_at,
-      @likes, NULL, NULL, @views, @hot_score, @tags, @raw
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      title = excluded.title, summary = excluded.summary,
-      author = excluded.author, author_id = excluded.author_id,
-      author_avatar = excluded.author_avatar, url = excluded.url,
-      likes = excluded.likes, views = excluded.views,
-      hot_score = excluded.hot_score, tags = excluded.tags,
-      raw = excluded.raw, collected_at = excluded.collected_at
-  `)
 
   type Snap = { noteId: string; hotScore: number; likes: number; views: number }
-  const prepared: Array<{ row: Record<string, unknown>; snap: Snap }> = []
+  type PreparedRow = {
+    id: string; category_id: string; keyword: string
+    title: string; summary: string; author: string
+    author_id: string | null; author_avatar: string | null
+    url: string; published_at: string; collected_at: string
+    likes: number; views: number; hot_score: number
+    tags: string[]; raw: unknown
+  }
+  const prepared: Array<{ row: PreparedRow; snap: Snap }> = []
   for (const d of items) {
     const target = d.url || d.short_link
     if (!target || !d.title) continue
@@ -132,19 +120,56 @@ export async function POST(req: Request) {
         published_at: publishedAt,
         collected_at: nowIso,
         likes, views, hot_score: hotScore,
-        tags: JSON.stringify(d.classify ? [d.classify] : []),
-        raw: JSON.stringify(d),
+        tags: d.classify ? [d.classify] : [],
+        raw: d,
       },
       snap: { noteId: id, hotScore, likes, views },
     })
   }
 
-  const tx = db.transaction(() => {
-    for (const p of prepared) upsert.run(p.row)
-  })
-  tx()
+  const client = await db.connect()
+  try {
+    await client.query('BEGIN')
+    for (const p of prepared) {
+      const r = p.row
+      await client.query(
+        `INSERT INTO collected_notes (
+           id, category_id, platform, keyword,
+           title, summary, author, author_id, author_avatar, author_red_id,
+           url, cover_image, published_at, collected_at,
+           likes, comments, shares, views, hot_score, tags, raw
+         ) VALUES (
+           $1, $2, 'wechat', $3,
+           $4, $5, $6, $7, $8, NULL,
+           $9, NULL, $10, $11,
+           $12, NULL, NULL, $13, $14, $15::jsonb, $16::jsonb
+         )
+         ON CONFLICT (id) DO UPDATE SET
+           title = excluded.title, summary = excluded.summary,
+           author = excluded.author, author_id = excluded.author_id,
+           author_avatar = excluded.author_avatar, url = excluded.url,
+           likes = excluded.likes, views = excluded.views,
+           hot_score = excluded.hot_score, tags = excluded.tags,
+           raw = excluded.raw, collected_at = excluded.collected_at`,
+        [
+          r.id, r.category_id, r.keyword,
+          r.title, r.summary, r.author, r.author_id, r.author_avatar,
+          r.url, r.published_at, r.collected_at,
+          r.likes, r.views, r.hot_score,
+          JSON.stringify(r.tags), JSON.stringify(r.raw),
+        ],
+      )
+    }
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  } finally {
+    client.release()
+  }
+
   const finishedAt = new Date().toISOString()
-  logQuerySuccess(db, {
+  await logQuerySuccess({
     categoryId, keyword, platform: 'wechat',
     startedAt, finishedAt,
     notes: prepared.map((p) => ({

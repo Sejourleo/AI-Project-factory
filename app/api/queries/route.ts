@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
 import { listQueries, type QueryStatus } from '@/lib/db/queries'
 import { PLATFORMS, type Platform } from '@/lib/types'
 
@@ -27,7 +26,6 @@ export async function GET(req: Request) {
   const limit = Number(url.searchParams.get('limit') ?? 50)
   const cursor = url.searchParams.get('cursor') ?? undefined
 
-  const db = getDb()
-  const result = listQueries(db, { categoryId, keyword, platform, status, limit, cursor })
+  const result = await listQueries({ categoryId, keyword, platform, status, limit, cursor })
   return NextResponse.json(result)
 }

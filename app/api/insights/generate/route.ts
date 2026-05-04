@@ -1,6 +1,5 @@
-import type Database from 'better-sqlite3'
 import { NextResponse } from 'next/server'
-import { getDb, type NoteRow } from '@/lib/db/client'
+import { db, ensureMigrated, type NoteRow } from '@/lib/db/client'
 import { getCategoryById } from '@/lib/db/categories'
 import {
   upsertNoteSummary, getNoteSummaries, insertInsightSnapshot,
@@ -23,47 +22,61 @@ export type TopNote = {
   summary: string; raw: string; hotScore: number
 }
 
-function pickTopNotes(db: Database.Database, categoryId: string): TopNote[] {
+async function pickTopNotes(categoryId: string): Promise<TopNote[]> {
+  await ensureMigrated()
   const since = new Date(Date.now() - WINDOW_DAYS * 86400_000).toISOString()
-  const rows = db.prepare(`
-    SELECT * FROM collected_notes
-    WHERE category_id = ? AND collected_at >= ?
-    ORDER BY hot_score DESC, published_at DESC
-    LIMIT ?
-  `).all(categoryId, since, TOP_N) as NoteRow[]
+  const { rows } = await db.query<NoteRow>(
+    `SELECT * FROM collected_notes
+     WHERE category_id = $1 AND collected_at >= $2
+     ORDER BY hot_score DESC, published_at DESC
+     LIMIT $3`,
+    [categoryId, since, TOP_N],
+  )
   return rows.map((r) => ({
     id: r.id, platform: r.platform as Platform,
     title: r.title, author: r.author, summary: r.summary,
-    raw: r.raw, hotScore: r.hot_score,
+    raw: typeof r.raw === 'string' ? r.raw : JSON.stringify(r.raw),
+    hotScore: r.hot_score,
   }))
 }
 
-export function pickNotesByKeywords(
-  db: Database.Database, categoryId: string, keywords: string[], limit = 15
-): TopNote[] {
+export async function pickNotesByKeywords(
+  categoryId: string, keywords: string[], limit = 15,
+): Promise<TopNote[]> {
   if (keywords.length === 0) return []
-  const likeClauses = keywords.map(() => '(keyword = ? OR title LIKE ? OR summary LIKE ?)').join(' OR ')
-  const params: unknown[] = [categoryId]
+  await ensureMigrated()
+  const args: unknown[] = [categoryId]
+  const orParts: string[] = []
   for (const kw of keywords) {
-    params.push(kw, `%${kw}%`, `%${kw}%`)
+    args.push(kw)
+    const eqIdx = args.length
+    args.push(`%${kw}%`)
+    const titleIdx = args.length
+    args.push(`%${kw}%`)
+    const summaryIdx = args.length
+    orParts.push(`(keyword = $${eqIdx} OR title ILIKE $${titleIdx} OR summary ILIKE $${summaryIdx})`)
   }
-  const rows = db.prepare(`
+  args.push(limit)
+  const limitIdx = args.length
+  const text = `
     SELECT * FROM collected_notes
-    WHERE category_id = ? AND (${likeClauses})
+    WHERE category_id = $1 AND (${orParts.join(' OR ')})
     ORDER BY hot_score DESC, published_at DESC
-    LIMIT ?
-  `).all(...params, limit) as NoteRow[]
+    LIMIT $${limitIdx}
+  `
+  const { rows } = await db.query<NoteRow>(text, args)
   return rows.map((r) => ({
     id: r.id, platform: r.platform as Platform,
     title: r.title, author: r.author, summary: r.summary,
-    raw: r.raw, hotScore: r.hot_score,
+    raw: typeof r.raw === 'string' ? r.raw : JSON.stringify(r.raw),
+    hotScore: r.hot_score,
   }))
 }
 
 export async function stage1(
-  db: Database.Database, llm: LLMClient, notes: TopNote[]
+  llm: LLMClient, notes: TopNote[],
 ): Promise<NoteSummary[]> {
-  const cached = getNoteSummaries(db, notes.map((n) => n.id))
+  const cached = await getNoteSummaries(notes.map((n) => n.id))
   const todo = notes.filter((n) => !cached.has(n.id))
   const results: NoteSummary[] = []
   for (let i = 0; i < todo.length; i += STAGE1_CONCURRENCY) {
@@ -82,7 +95,7 @@ export async function stage1(
         keywords: out.keywords, keyPoints: out.keyPoints,
         highlights: out.highlights, audience: out.audience,
       }
-      upsertNoteSummary(db, { ...summary, model: llm.modelId })
+      await upsertNoteSummary({ ...summary, model: llm.modelId })
       return summary
     }))
     for (const r of settled) {
@@ -95,14 +108,14 @@ export async function stage1(
 }
 
 export async function runInsightsPipeline(
-  db: Database.Database, llm: LLMClient, categoryId: string
+  llm: LLMClient, categoryId: string,
 ): Promise<{ snapshotId: number; insightsCount: number; sourceCount: number; generatedAt: string }> {
-  const cat = getCategoryById(db, categoryId)
+  const cat = await getCategoryById(categoryId)
   if (!cat) throw new Error(`Category ${categoryId} not found`)
   const generatedAt = new Date().toISOString()
 
-  const top = pickTopNotes(db, categoryId)
-  const summaries = await stage1(db, llm, top)
+  const top = await pickTopNotes(categoryId)
+  const summaries = await stage1(llm, top)
   const summaryByNote = new Map(summaries.map((s) => [s.noteId, s]))
   const noteMeta = new Map(top.map((n) => [n.id, n]))
 
@@ -132,7 +145,7 @@ export async function runInsightsPipeline(
     })
     insights = out.insights ?? []
   } catch (err) {
-    insertInsightSnapshot(db, {
+    await insertInsightSnapshot({
       categoryId, generatedAt, status: 'error',
       errorMessage: err instanceof Error ? err.message : String(err),
       sourceNoteIds: summaries.map((s) => s.noteId),
@@ -141,7 +154,7 @@ export async function runInsightsPipeline(
     throw err
   }
 
-  const snapshotId = insertInsightSnapshot(db, {
+  const snapshotId = await insertInsightSnapshot({
     categoryId, generatedAt, status: 'success',
     sourceNoteIds: summaries.map((s) => s.noteId),
     insights, model: llm.modelId,
@@ -168,12 +181,11 @@ export async function POST(req: Request) {
   }
   const categoryId = (body.categoryId ?? '').trim()
   if (!categoryId) return NextResponse.json({ error: 'Missing categoryId' }, { status: 400 })
-  const db = getDb()
-  if (!getCategoryById(db, categoryId)) {
+  if (!(await getCategoryById(categoryId))) {
     return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
   try {
-    const result = await runInsightsPipeline(db, llm, categoryId)
+    const result = await runInsightsPipeline(llm, categoryId)
     return NextResponse.json(result)
   } catch (err) {
     return NextResponse.json(

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { getDb } from '@/lib/db/client'
 import { getCategoryById } from '@/lib/db/categories'
 import { insertInsightSnapshot } from '@/lib/db/insights'
 import { getLLMClient } from '@/lib/llm/client'
@@ -23,18 +22,17 @@ export async function POST(req: Request) {
   if (!categoryId) return NextResponse.json({ error: 'Missing categoryId' }, { status: 400 })
   if (keywords.length === 0) return NextResponse.json({ error: 'Missing keywords' }, { status: 400 })
 
-  const db = getDb()
-  const cat = getCategoryById(db, categoryId)
+  const cat = await getCategoryById(categoryId)
   if (!cat) return NextResponse.json({ error: 'Category not found' }, { status: 404 })
 
   const generatedAt = new Date().toISOString()
-  const notes = pickNotesByKeywords(db, categoryId, keywords)
+  const notes = await pickNotesByKeywords(categoryId, keywords)
   if (notes.length === 0) {
     return NextResponse.json({ error: '未找到匹配的笔记数据', keywords }, { status: 404 })
   }
 
   try {
-    const summaries = await stage1(db, llm, notes)
+    const summaries = await stage1(llm, notes)
     const noteMeta = new Map(notes.map((n) => [n.id, n]))
     const stage2Input = summaries.map((s) => {
       const m = noteMeta.get(s.noteId)
@@ -59,7 +57,7 @@ export async function POST(req: Request) {
       maxTokens: 4096,
     })
     const insights = out.insights ?? []
-    const snapshotId = insertInsightSnapshot(db, {
+    const snapshotId = await insertInsightSnapshot({
       categoryId, generatedAt, status: 'success',
       sourceNoteIds: summaries.map((s) => s.noteId),
       insights, model: llm.modelId,
@@ -69,7 +67,7 @@ export async function POST(req: Request) {
       sourceCount: summaries.length, generatedAt, keywords,
     })
   } catch (err) {
-    insertInsightSnapshot(db, {
+    await insertInsightSnapshot({
       categoryId, generatedAt, status: 'error',
       errorMessage: err instanceof Error ? err.message : String(err),
       sourceNoteIds: [], insights: [], model: llm.modelId,

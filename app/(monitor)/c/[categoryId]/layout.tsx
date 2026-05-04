@@ -1,4 +1,3 @@
-import { getDb } from '@/lib/db/client'
 import { getCategoryById } from '@/lib/db/categories'
 import { TabNav } from '@/components/tab-nav'
 import { CategoryName } from '@/components/category-name'
@@ -11,7 +10,7 @@ export default async function CategoryLayout({
   params: Promise<{ categoryId: string }>
 }) {
   const { categoryId } = await params
-  const cat = getCategoryById(getDb(), categoryId)
+  const cat = await getCategoryById(categoryId)
   return (
     <>
       <header className="h-16 px-8 flex items-center bg-white sticky top-0 z-10">
