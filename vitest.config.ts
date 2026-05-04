@@ -17,6 +17,8 @@ export default defineConfig({
           name: 'monitor',
           environment: 'node',
           include: ['tests/**/*.test.ts'],
+          pool: 'forks',
+          poolOptions: { forks: { singleFork: true } },
         },
       },
       {
