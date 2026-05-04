@@ -1,9 +1,6 @@
 # Brainstorm visual companion session files
 .superpowers/
 
-# Local SQLite data
-data/
-
 # macOS
 .DS_Store
 
@@ -20,3 +17,6 @@ yarn-debug.log*
 yarn-error.log*
 *.tsbuildinfo
 .vercel
+
+# Local Postgres data volume (managed by docker compose)
+postgres-data/
