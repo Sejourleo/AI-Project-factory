@@ -22,14 +22,14 @@ export function AddAccountDialog({
   onAdd: (a: { platform: Platform; handle: string; displayName: string }) => void
 }) {
   const [open, setOpen] = useState(false)
-  const [platform, setPlatform] = useState<Platform>('bilibili')
+  const [platform, setPlatform] = useState<Platform>('wechat')
   const [handle, setHandle] = useState('')
   const [displayName, setDisplayName] = useState('')
 
   function reset() {
     setHandle('')
     setDisplayName('')
-    setPlatform('bilibili')
+    setPlatform('wechat')
   }
 
   function submit() {
