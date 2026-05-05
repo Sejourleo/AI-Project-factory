@@ -95,11 +95,12 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
       return
     }
     setSaving(true)
-    // TODO(api): PUT /api/categories/:id/settings
-    await new Promise((r) => setTimeout(r, 300))
-    updateSettings(categoryId, settings)
-    setSaving(false)
-    toast.success('设置已保存（原型演示）')
+    try {
+      await updateSettings(categoryId, settings)
+      toast.success('设置已保存')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
