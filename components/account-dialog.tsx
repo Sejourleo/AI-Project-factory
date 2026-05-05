@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +23,7 @@ type AccountDialogProps = {
   initial?: Account
   onSubmit: (a: Account) => void
   /** 自定义触发按钮；不传则用默认「+ 新增博主」按钮（仅在新增模式下） */
-  trigger?: ReactNode
+  trigger?: ReactElement
 }
 
 const DEFAULT_ADD_TRIGGER = (
