@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,42 +16,50 @@ import { Label } from '@/components/ui/label'
 import { PLATFORMS, type Platform } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-export function AddAccountDialog({
-  onAdd,
-}: {
-  onAdd: (a: { platform: Platform; handle: string; displayName: string }) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [platform, setPlatform] = useState<Platform>('wechat')
-  const [handle, setHandle] = useState('')
-  const [displayName, setDisplayName] = useState('')
+type Account = { platform: Platform; handle: string; displayName: string }
 
-  function reset() {
-    setHandle('')
-    setDisplayName('')
-    setPlatform('wechat')
-  }
+type AccountDialogProps = {
+  /** 编辑模式时传入；否则进入新增模式 */
+  initial?: Account
+  onSubmit: (a: Account) => void
+  /** 自定义触发按钮；不传则用默认「+ 新增博主」按钮（仅在新增模式下） */
+  trigger?: ReactNode
+}
+
+const DEFAULT_ADD_TRIGGER = (
+  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 text-sm text-neutral-700 hover:bg-neutral-200/70 transition-colors">
+    <UserPlus size={14} />
+    新增博主
+  </button>
+)
+
+export function AccountDialog({ initial, onSubmit, trigger }: AccountDialogProps) {
+  const isEdit = initial !== undefined
+  const [open, setOpen] = useState(false)
+  const [platform, setPlatform] = useState<Platform>(initial?.platform ?? 'wechat')
+  const [handle, setHandle] = useState(initial?.handle ?? '')
+  const [displayName, setDisplayName] = useState(initial?.displayName ?? '')
+
+  // 每次打开时同步 initial（编辑场景），关闭时也复位（新增场景）
+  useEffect(() => {
+    if (!open) return
+    setPlatform(initial?.platform ?? 'wechat')
+    setHandle(initial?.handle ?? '')
+    setDisplayName(initial?.displayName ?? '')
+  }, [open, initial])
 
   function submit() {
     if (!handle.trim() || !displayName.trim()) return
-    onAdd({ platform, handle: handle.trim(), displayName: displayName.trim() })
+    onSubmit({ platform, handle: handle.trim(), displayName: displayName.trim() })
     setOpen(false)
-    reset()
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 text-sm text-neutral-700 hover:bg-neutral-200/70 transition-colors">
-            <UserPlus size={14} />
-            新增博主
-          </button>
-        }
-      />
+      <DialogTrigger render={trigger ?? DEFAULT_ADD_TRIGGER} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>新增对标博主</DialogTitle>
+          <DialogTitle>{isEdit ? '编辑对标博主' : '新增对标博主'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1">
           <div className="space-y-1.5">
@@ -104,7 +112,7 @@ export function AddAccountDialog({
             取消
           </Button>
           <Button onClick={submit} disabled={!handle.trim() || !displayName.trim()}>
-            添加
+            {isEdit ? '保存' : '添加'}
           </Button>
         </DialogFooter>
       </DialogContent>

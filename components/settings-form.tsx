@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Clock, Pause, Play, Trash2 } from 'lucide-react'
+import { Clock, Pause, Pencil, Play, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { AddAccountDialog } from '@/components/add-account-dialog'
+import { AccountDialog } from '@/components/account-dialog'
 import { useCategories } from '@/components/categories-provider'
 import { PLATFORMS, type MonitorSettings, type Platform } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -66,6 +66,19 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
 
   function addAccount(a: { platform: Platform; handle: string; displayName: string }) {
     setSettings((s) => ({ ...s, accounts: [...s.accounts, a] }))
+  }
+
+  function updateAccount(
+    oldHandle: string,
+    oldPlatform: Platform,
+    next: { platform: Platform; handle: string; displayName: string }
+  ) {
+    setSettings((s) => ({
+      ...s,
+      accounts: s.accounts.map((a) =>
+        a.handle === oldHandle && a.platform === oldPlatform ? next : a
+      ),
+    }))
   }
 
   function removeAccount(handle: string, platform: Platform) {
@@ -194,7 +207,7 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
       <section className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-neutral-500">对标博主 / 账号</h3>
-          <AddAccountDialog onAdd={addAccount} />
+          <AccountDialog onSubmit={addAccount} />
         </div>
         {settings.accounts.length === 0 ? (
           <div className="text-xs text-neutral-400 py-8 text-center">暂无对标博主</div>
@@ -232,6 +245,18 @@ export function SettingsForm({ categoryId }: { categoryId: string }) {
                     >
                       {paused ? <Play size={13} /> : <Pause size={13} />}
                     </button>
+                    <AccountDialog
+                      initial={a}
+                      onSubmit={(next) => updateAccount(a.handle, a.platform, next)}
+                      trigger={
+                        <button
+                          className="size-7 flex items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-200/70 hover:text-neutral-900 transition-colors"
+                          aria-label="编辑"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      }
+                    />
                     <button
                       onClick={() => removeAccount(a.handle, a.platform)}
                       className="size-7 flex items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-200/70 hover:text-neutral-900 transition-colors"
