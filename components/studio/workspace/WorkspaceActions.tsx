@@ -9,6 +9,7 @@ import type { Platform, Session } from '@/lib/studio/types';
 interface Props {
   platform: Platform;
   session: Session;
+  autoOpenPublish?: boolean;
 }
 
 const SHOW_PUBLISH: Record<Platform, boolean> = {
@@ -52,13 +53,31 @@ async function copyForPlatform(platform: Platform, session: Session) {
   }
 }
 
-export function WorkspaceActions({ platform, session }: Props) {
+export function WorkspaceActions({ platform, session, autoOpenPublish = false }: Props) {
   const setWechatPublishResult = useSessionsStore(s => s.setWechatPublishResult);
   const [wechatDialogOpen, setWechatDialogOpen] = useState(false);
+  const [autoPublishDismissed, setAutoPublishDismissed] = useState(false);
 
   const wechatHtml = session.content.wechat ?? '';
   const wechatPublished = session.publishResult?.wechat;
   const canPublishWechat = !!wechatHtml.trim();
+  const shouldAutoOpenPublish =
+    autoOpenPublish &&
+    !autoPublishDismissed &&
+    platform === 'wechat' &&
+    session.status.wechat === 'done' &&
+    canPublishWechat;
+  const publishDialogOpen = wechatDialogOpen || shouldAutoOpenPublish;
+
+  function openWechatDialog() {
+    setAutoPublishDismissed(false);
+    setWechatDialogOpen(true);
+  }
+
+  function closeWechatDialog() {
+    setAutoPublishDismissed(true);
+    setWechatDialogOpen(false);
+  }
 
   function renderPublishButton() {
     if (platform === 'wechat') {
@@ -67,7 +86,7 @@ export function WorkspaceActions({ platform, session }: Props) {
         <Button
           variant="primary"
           size="sm"
-          onClick={() => setWechatDialogOpen(true)}
+          onClick={openWechatDialog}
           disabled={!canPublishWechat}
           title={canPublishWechat ? '打开公众号发布弹窗' : '内容尚未生成完成'}
         >
@@ -94,8 +113,8 @@ export function WorkspaceActions({ platform, session }: Props) {
 
       {platform === 'wechat' && (
         <PublishWechatDialog
-          open={wechatDialogOpen}
-          onClose={() => setWechatDialogOpen(false)}
+          open={publishDialogOpen}
+          onClose={closeWechatDialog}
           sessionTopic={session.topic}
           sessionTitle={session.title}
           html={wechatHtml}
