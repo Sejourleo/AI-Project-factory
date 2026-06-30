@@ -1,17 +1,31 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PromptInput } from '@/components/studio/home/PromptInput';
 import { PlatformPicker } from '@/components/studio/home/PlatformPicker';
 import { GenerateButton } from '@/components/studio/home/GenerateButton';
 import { startGeneration } from '@/lib/studio/runGeneration';
 import type { Platform, TwitterModeHint } from '@/lib/studio/types';
 
-export default function HomePage() {
+function parsePlatforms(value: string | null): Platform[] | null {
+  if (!value) return null;
+  const allowed = new Set<Platform>(['wechat', 'xhs', 'twitter', 'video']);
+  const parsed = value
+    .split(',')
+    .map((v) => v.trim())
+    .filter((v): v is Platform => allowed.has(v as Platform));
+  return parsed.length > 0 ? parsed : null;
+}
+
+function StudioHome() {
   const router = useRouter();
-  const [input, setInput] = useState('');
-  const [platforms, setPlatforms] = useState<Platform[]>(['wechat', 'xhs']);
+  const search = useSearchParams();
+  const initialPrompt = search.get('prompt') ?? '';
+  const initialPlatforms = parsePlatforms(search.get('platforms')) ?? ['wechat', 'xhs'];
+  const [input, setInput] = useState(initialPrompt);
+  const [platforms, setPlatforms] = useState<Platform[]>(initialPlatforms);
   const [twitterHint, setTwitterHint] = useState<TwitterModeHint>('auto');
+  const autoStarted = useRef(false);
 
   const canGenerate = input.trim().length > 0 && platforms.length > 0;
 
@@ -24,6 +38,20 @@ export default function HomePage() {
     const id = await startGeneration({ input: input.trim(), platforms, twitterHint });
     router.push(`/studio/workspace/${id}`);
   }
+
+  useEffect(() => {
+    if (autoStarted.current || search.get('auto') !== '1') return;
+    const prompt = search.get('prompt')?.trim();
+    if (!prompt) return;
+
+    autoStarted.current = true;
+    const selectedPlatforms = parsePlatforms(search.get('platforms')) ?? ['wechat'];
+
+    startGeneration({ input: prompt, platforms: selectedPlatforms, twitterHint }).then((sessionId) => {
+      const publish = search.get('publish') === 'wechat' && selectedPlatforms.includes('wechat');
+      router.replace(`/studio/workspace/${sessionId}${publish ? '?publish=wechat' : ''}`);
+    });
+  }, [router, search, twitterHint]);
 
   return (
     <div className="mx-auto max-w-3xl px-6 pt-12 pb-20 space-y-10">
@@ -43,5 +71,13 @@ export default function HomePage() {
       />
       <GenerateButton disabled={!canGenerate} onClick={handleGenerate} />
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense>
+      <StudioHome />
+    </Suspense>
   );
 }
