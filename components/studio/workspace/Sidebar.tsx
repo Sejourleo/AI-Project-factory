@@ -9,7 +9,7 @@ import { InlineEdit } from '@/components/studio/ui/InlineEdit';
 import type { Session } from '@/lib/studio/types';
 
 interface Props {
-  currentId: string;
+  currentId?: string | null;
 }
 
 function groupByMonth(sessions: Session[]): Map<string, Session[]> {
