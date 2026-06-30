@@ -4,6 +4,9 @@ import { buildMessages } from '@/lib/studio/ai/prompt';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// Vercel 函数最大执行时长（秒）。Hobby 最高 60，Pro 最高 300。
+// LLM 流式生成较慢，必须显式拉长，否则函数会在正文返回前被超时中断。
+export const maxDuration = 60;
 
 interface RequestBody {
   platform: Platform;
