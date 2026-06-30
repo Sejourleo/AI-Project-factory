@@ -1,7 +1,10 @@
 'use client'
 
+import Link from 'next/link'
+import { PenLine } from 'lucide-react'
 import type { TopicInsight } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { insightToWechatPrompt, studioWechatDraftHref } from '@/lib/studio/quick-wechat'
 
 export function InsightCard({
   insight,
@@ -11,6 +14,7 @@ export function InsightCard({
   index: number
 }) {
   const rank = String(index + 1).padStart(2, '0')
+  const wechatHref = studioWechatDraftHref(insightToWechatPrompt(insight))
 
   return (
     <div className="bg-white rounded-xl border border-neutral-100 p-6 flex gap-6">
@@ -66,6 +70,16 @@ export function InsightCard({
             <span className="truncate">{insight.evidenceNoteIds.join(', ')}</span>
           </div>
         )}
+
+        <div className="pt-1">
+          <Link
+            href={wechatHref}
+            className="inline-flex items-center gap-1.5 rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800"
+          >
+            <PenLine size={13} />
+            写公众号
+          </Link>
+        </div>
       </div>
     </div>
   )

@@ -1,8 +1,10 @@
 'use client'
 
-import { Eye, Heart, MessageCircle, Share2 } from 'lucide-react'
+import Link from 'next/link'
+import { ExternalLink, Eye, Heart, MessageCircle, PenLine, Share2 } from 'lucide-react'
 import { PLATFORMS, type ContentItem } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { contentToWechatPrompt, studioWechatDraftHref } from '@/lib/studio/quick-wechat'
 
 function fmtNum(n: number): string {
   if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
@@ -14,12 +16,10 @@ export function ContentCard({ item }: { item: ContentItem }) {
   const platform = PLATFORMS.find((p) => p.id === item.platform)
   const authorInitial = item.author.slice(0, 1)
   const heatPct = Math.max(0, Math.min(100, item.hotScore))
+  const wechatHref = studioWechatDraftHref(contentToWechatPrompt(item))
 
   return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <div
       className="group bg-white rounded-xl border border-neutral-100 px-6 py-5 flex gap-6 transition-colors hover:bg-neutral-50/60"
     >
       <div className="w-[72px] shrink-0 flex flex-col items-center pt-1">
@@ -101,7 +101,26 @@ export function ContentCard({ item }: { item: ContentItem }) {
             </div>
           )}
         </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <Link
+            href={wechatHref}
+            className="inline-flex items-center gap-1.5 rounded-md bg-neutral-900 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800"
+          >
+            <PenLine size={13} />
+            写公众号
+          </Link>
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+          >
+            <ExternalLink size={13} />
+            原文
+          </a>
+        </div>
       </div>
-    </a>
+    </div>
   )
 }
