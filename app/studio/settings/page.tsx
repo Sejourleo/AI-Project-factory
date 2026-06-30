@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSettingsStore } from '@/lib/studio/store/settings';
 import { defaultSettings } from '@/lib/studio/ai/mock-data';
@@ -24,11 +24,8 @@ export default function SettingsPage() {
   const setAll = useSettingsStore(s => s.setAll);
 
   const [active, setActive] = useState<Platform>('wechat');
-  const [draft, setDraft] = useState<Settings>(stored);
+  const [draft, setDraft] = useState<Settings>(() => useSettingsStore.getState().settings);
   const [confirmReset, setConfirmReset] = useState<'one' | 'all' | null>(null);
-
-  // store 同步过来时（首次 hydrate / 外部修改）刷新 draft
-  useEffect(() => { setDraft(stored); }, [stored]);
 
   const dirty = useMemo(() => !deepEqual(draft, stored), [draft, stored]);
   const current = draft[active];
